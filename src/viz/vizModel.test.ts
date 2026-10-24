@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { Current } from '../core/eventTracker';
-import { MOTIFS, VizState, dbFromRms, intensityFromContrast, levelFromRms, motifForCurrent } from './vizModel';
+import {
+  BURST_LIFE_S,
+  MAX_BURSTS,
+  MOTIFS,
+  VizState,
+  dbFromRms,
+  intensityFromContrast,
+  levelFromRms,
+  motifForCurrent,
+  type Motif,
+  type VizInput,
+} from './vizModel';
 
 const event = (category: Extract<Current, { kind: 'event' }>['category']): Current => ({
   kind: 'event',
@@ -106,5 +117,95 @@ describe('VizState', () => {
     const f = VizState.staticFrame('particles');
     expect(f.time).toBe(0);
     expect(f.weights.particles).toBe(1);
+  });
+});
+
+describe('sound-driven accents (REQ-005)', () => {
+  const tone = { low: 0.2, mid: 0.6, high: 0.2 };
+  const feat = (rms: number, peak = rms * 3) => ({ rms, peak, bands: tone });
+  /** Runs at 30 fps and returns the number of onsets seen plus the last frame. */
+  const run = (s: VizState, seconds: number, input: (i: number) => VizInput | null, motif: Motif = 'ambient') => {
+    let onsets = 0;
+    let frame = s.frame();
+    for (let i = 0; i < seconds * 30; i++) {
+      frame = s.step(1 / 30, input(i), motif);
+      if (frame.bursts.some((b) => b.age === 0)) onsets++;
+    }
+    return { onsets, frame };
+  };
+
+  it('a quiet tap in a quiet room emits one short-lived burst', () => {
+    const s = new VizState();
+    run(s, 8, () => feat(0.002));
+    const tap = run(s, 0.15, () => feat(0.01, 0.08));
+    expect(tap.onsets).toBe(1);
+    expect(tap.frame.accent).toBeGreaterThan(0.4);
+    const after = run(s, BURST_LIFE_S + 0.2, () => feat(0.002));
+    expect(after.onsets).toBe(0);
+    expect(after.frame.bursts).toHaveLength(0);
+    expect(after.frame.accent).toBeLessThan(0.05);
+  });
+
+  it('steady, slightly jittery noise settles to no bursts; a stronger sound still stands out', () => {
+    const s = new VizState();
+    const jitter = (i: number) => feat(0.1 * (1 + 0.15 * Math.sin(i * 1.7)));
+    run(s, 6, jitter);
+    const settled = run(s, 10, jitter);
+    expect(settled.onsets).toBe(0);
+    expect(settled.frame.level).toBeLessThan(0.05);
+    expect(settled.frame.accent).toBeLessThan(0.05);
+
+    const shout = run(s, 0.3, () => feat(0.6));
+    expect(shout.onsets).toBeGreaterThanOrEqual(1);
+    expect(shout.frame.level).toBeGreaterThan(0.4);
+  });
+
+  it('never emits pulses or bursts in silence or while not listening', () => {
+    const silent = new VizState();
+    const off = run(silent, 5, () => null, 'pulses');
+    expect(off.onsets).toBe(0);
+    expect(off.frame.listening).toBe(false);
+    expect(off.frame.level).toBe(0);
+
+    const quiet = run(new VizState(), 5, () => feat(0.0005), 'pulses');
+    expect(quiet.onsets).toBe(0);
+    expect(quiet.frame.listening).toBe(true);
+  });
+
+  it('band energy is ~0 in near silence even though the tone balance sums to 1', () => {
+    const { frame } = run(new VizState(), 5, () => feat(0.001), 'forms');
+    expect(frame.bands.low + frame.bands.mid + frame.bands.high).toBeLessThan(0.02);
+  });
+
+  it('rate-limits bursts and keeps them bounded under rapid hits', () => {
+    const s = new VizState();
+    run(s, 3, () => feat(0.002));
+    // Alternating hits and silence every 2 frames (15 Hz) for 2 seconds.
+    const { onsets, frame } = run(s, 2, (i) => (i % 4 < 2 ? feat(0.3) : feat(0.002)));
+    expect(onsets).toBeLessThanOrEqual(Math.ceil(2 / 0.22));
+    expect(frame.bursts.length).toBeLessThanOrEqual(MAX_BURSTS);
+  });
+
+  it('a burst keeps the motif it was born with while the scene cross-fades', () => {
+    const s = new VizState();
+    run(s, 3, () => feat(0.002), 'pulses');
+    run(s, 0.1, () => feat(0.2), 'pulses');
+    const { frame } = run(s, 0.3, () => feat(0.002), 'waves');
+    expect(frame.bursts[0]?.motif).toBe('pulses');
+  });
+
+  it('drift advances faster with foreground sound than at rest', () => {
+    const rest = run(new VizState(), 2, () => feat(0.002)).frame.flow;
+    const s = new VizState();
+    run(s, 2, () => feat(0.002));
+    const before = s.frame().flow;
+    const loud = run(s, 2, (i) => feat(i % 20 < 10 ? 0.3 : 0.05)).frame.flow - before;
+    expect(loud).toBeGreaterThan(rest * 1.5);
+  });
+
+  it('static frame has no bursts or accent', () => {
+    const f = VizState.staticFrame('pulses');
+    expect(f.bursts).toHaveLength(0);
+    expect(f.accent).toBe(0);
   });
 });

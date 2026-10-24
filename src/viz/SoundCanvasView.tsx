@@ -1,19 +1,11 @@
-import {
-  Canvas,
-  Circle,
-  Group,
-  LinearGradient,
-  Path,
-  Rect,
-  Skia,
-  vec,
-} from '@shopify/react-native-skia';
-import { useEffect, useRef, useState } from 'react';
+import { Canvas, Picture, type SkPicture } from '@shopify/react-native-skia';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 
 import type { AudioFeatures } from '../core/types';
 import { usePalette } from '../ui/theme';
-import { VizState, type Motif, type VizFrame } from './vizModel';
+import { UniversePainter } from './universePainter';
+import { VizState, type Motif } from './vizModel';
 
 export type VizMode = 'animated' | 'reduced';
 
@@ -28,68 +20,56 @@ interface Props {
 }
 
 const FRAME_MS = 1000 / 30;
-
-type VizColors = {
-  lav: string;
-  mint: string;
-  gold: string;
-  star: string;
-};
-
-// Universe Dark: luminous mint/lavender/gold on navy. Universe Light: turquoise/lilac/soft gold on pearl.
-const DARK_COLORS: VizColors = { lav: '#C5ADFF', mint: '#73EDD3', gold: '#FBD97A', star: '#F5F8F8' };
-const LIGHT_COLORS: VizColors = { lav: '#8F7FD8', mint: '#2FA4B5', gold: '#D9A441', star: '#52627B' };
-
-// Fixed pseudo-random seeds so rain looks the same on every launch and between frames.
-const PARTICLES = (() => {
-  let s = 12345;
-  const next = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
-  return Array.from({ length: 70 }, () => ({
-    x: next(),
-    y: next(),
-    speed: 0.4 + next() * 0.9,
-    size: 1 + next() * 2.2,
-    wobble: next() * Math.PI * 2,
-  }));
-})();
+const IDLE_FRAME_MS = 1000 / 15; // stopped and settled: slow breathing only, so save battery
 
 /**
  * Decorative sound-reactive Skia scene. It is an artistic interpretation of loudness, tone
  * and broad sound class, never a map of where a sound comes from, and it carries no
  * information that the text UI does not also state.
+ *
+ * Each frame is recorded imperatively into one Skia picture, so React only swaps a single
+ * prop instead of reconciling a tree of shapes.
  */
 export function SoundCanvasView({ motif, mode, height, getFeatures, paused = false }: Props) {
   const c = usePalette();
-  const colors = c.mode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const [width, setWidth] = useState(0);
-  const [frame, setFrame] = useState<VizFrame>(() => VizState.staticFrame(motif));
+  const [picture, setPicture] = useState<SkPicture | null>(null);
   const motifRef = useRef(motif);
   motifRef.current = motif;
 
-  // Reduce Motion: one fixed composition, redrawn only when the motif changes.
-  useEffect(() => {
-    if (mode === 'reduced') setFrame(VizState.staticFrame(motif));
-  }, [mode, motif]);
+  const painter = useMemo(
+    () => (width > 0 ? new UniversePainter(width, height, c.mode, c.vizBg) : null),
+    [width, height, c.mode, c.vizBg],
+  );
+  // One long-lived state so motif changes, pauses and theme switches cross-fade instead of restarting.
+  const state = useRef(new VizState()).current;
 
-  // Animated: one long-lived state so motif changes cross-fade instead of restarting.
+  // Reduce Motion: one fixed composition, redrawn only when the motif, size or theme changes.
   useEffect(() => {
-    if (mode !== 'animated' || paused) return;
-    const state = new VizState();
+    if (mode === 'reduced' && painter) setPicture(painter.draw(VizState.staticFrame(motif)));
+  }, [mode, motif, painter]);
+
+  useEffect(() => {
+    if (mode !== 'animated' || paused || !painter) return;
     let raf = 0;
     let last = Date.now();
+    let interval = FRAME_MS;
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const now = Date.now();
-      if (now - last < FRAME_MS - 2) return;
+      if (now - last < interval - 2) return;
       const dt = (now - last) / 1000;
       last = now;
-      setFrame(state.step(dt, getFeatures(), motifRef.current));
+      const frame = state.step(dt, getFeatures(), motifRef.current);
+      const settled = !frame.listening && frame.presence < 0.02 && frame.level < 0.01 && frame.bursts.length === 0;
+      interval = settled ? IDLE_FRAME_MS : FRAME_MS;
+      setPicture(painter.draw(frame));
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [mode, paused, getFeatures]);
+  }, [mode, paused, painter, getFeatures, state]);
 
-  const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
+  const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
 
   return (
     <View
@@ -99,147 +79,7 @@ export function SoundCanvasView({ motif, mode, height, getFeatures, paused = fal
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {width > 0 && (
-        <Canvas style={{ width, height }}>
-          <Rect x={0} y={0} width={width} height={height}>
-            <LinearGradient start={vec(0, 0)} end={vec(width, height)} colors={c.vizBg} />
-          </Rect>
-          <Scene frame={frame} w={width} h={height} colors={colors} />
-        </Canvas>
-      )}
+      {width > 0 && <Canvas style={{ width, height }}>{picture && <Picture picture={picture} />}</Canvas>}
     </View>
-  );
-}
-
-type SceneProps = { frame: VizFrame; w: number; h: number; colors: VizColors };
-
-function Scene({ frame, w, h, colors }: SceneProps) {
-  const { weights } = frame;
-  return (
-    <>
-      {weights.ambient > 0.02 && <Ambient frame={frame} w={w} h={h} colors={colors} />}
-      {weights.waves > 0.02 && <Waves frame={frame} w={w} h={h} colors={colors} />}
-      {weights.pulses > 0.02 && <Pulses frame={frame} w={w} h={h} colors={colors} />}
-      {weights.particles > 0.02 && <Particles frame={frame} w={w} h={h} colors={colors} />}
-      {weights.forms > 0.02 && <Forms frame={frame} w={w} h={h} colors={colors} />}
-    </>
-  );
-}
-
-function Ambient({ frame, w, h, colors }: SceneProps) {
-  const breathe = 1 + 0.08 * Math.sin(frame.time * 0.6);
-  const r = h * (0.22 + 0.2 * frame.level) * breathe;
-  return (
-    <Group opacity={frame.weights.ambient * 0.7}>
-      {PARTICLES.slice(0, 40).map((p, i) => (
-        <Circle
-          key={i}
-          cx={p.x * w}
-          cy={p.y * h}
-          r={p.size * 0.6}
-          color={colors.star}
-          opacity={0.25 + 0.35 * (0.5 + 0.5 * Math.sin(frame.time * 0.8 * p.speed + p.wobble))}
-        />
-      ))}
-      <Circle cx={w / 2} cy={h / 2} r={r * 1.6} color={colors.lav} opacity={0.18} />
-      <Circle cx={w / 2} cy={h / 2} r={r} color={colors.mint} opacity={0.35} />
-      <Circle cx={w / 2} cy={h / 2} r={r * 0.5} color={colors.gold} opacity={0.4} />
-    </Group>
-  );
-}
-
-function Waves({ frame, w, h, colors }: SceneProps) {
-  const paths = [0, 1, 2].map((i) => {
-    const builder = Skia.PathBuilder.Make();
-    const amp = h * 0.2 * (0.12 + frame.level) * (1 - i * 0.2);
-    for (let x = 0; x <= w; x += 8) {
-      const y =
-        h / 2 +
-        Math.sin(x * 0.018 * (1 + i * 0.4) + frame.time * (1.6 + i * 0.5) + i * 1.7) * amp +
-        Math.sin(x * 0.007 + frame.time * 0.7) * amp * 0.4;
-      if (x === 0) builder.moveTo(x, y);
-      else builder.lineTo(x, y);
-    }
-    return builder.build();
-  });
-  return (
-    <Group opacity={frame.weights.waves}>
-      {paths.map((path, i) => (
-        <Path
-          key={i}
-          path={path}
-          style="stroke"
-          strokeWidth={3 + frame.level * 4 - i}
-          color={[colors.lav, colors.mint, colors.gold][i]!}
-          opacity={0.9 - i * 0.25}
-        />
-      ))}
-    </Group>
-  );
-}
-
-function Pulses({ frame, w, h, colors }: SceneProps) {
-  const maxR = Math.min(w, h) * 0.55 + frame.level * 30;
-  const speed = 0.35 + frame.level * 0.9;
-  return (
-    <Group opacity={frame.weights.pulses}>
-      {[0, 1, 2, 3].map((i) => {
-        const p = (frame.time * speed + i / 4) % 1;
-        return (
-          <Circle
-            key={i}
-            cx={w / 2}
-            cy={h / 2}
-            r={8 + p * maxR}
-            style="stroke"
-            strokeWidth={2 + frame.level * 7 * (1 - p)}
-            color={i % 2 === 0 ? colors.mint : colors.gold}
-            opacity={(1 - p) * 0.9}
-          />
-        );
-      })}
-    </Group>
-  );
-}
-
-function Particles({ frame, w, h, colors }: SceneProps) {
-  const fall = frame.time * (0.12 + frame.level * 0.35);
-  return (
-    <Group opacity={frame.weights.particles * (0.45 + 0.45 * frame.level)}>
-      {PARTICLES.map((p, i) => (
-        <Circle
-          key={i}
-          cx={p.x * w + Math.sin(frame.time * 0.8 + p.wobble) * 4}
-          cy={((p.y + fall * p.speed) % 1) * h}
-          r={p.size * (1 + frame.level * 0.6)}
-          color={i % 3 === 0 ? colors.gold : colors.mint}
-        />
-      ))}
-    </Group>
-  );
-}
-
-function Forms({ frame, w, h, colors }: SceneProps) {
-  const beat = 0.5 + 0.5 * Math.sin(frame.time * 4.2);
-  const { low, mid, high } = frame.bands;
-  const base = Math.min(w, h) * 0.18;
-  const spots = [
-    { x: 0.25, y: 0.55, e: low, color: colors.lav, phase: 0 },
-    { x: 0.5, y: 0.4, e: mid, color: colors.mint, phase: 1.3 },
-    { x: 0.75, y: 0.58, e: high, color: colors.gold, phase: 2.6 },
-  ];
-  return (
-    <Group opacity={frame.weights.forms}>
-      {spots.map((s, i) => {
-        const pulse = 0.5 + 0.5 * Math.sin(frame.time * 4.2 + s.phase);
-        const r = base * (0.5 + s.e * 1.4 + frame.level * 0.8 * (0.4 + 0.6 * pulse));
-        return (
-          <Group key={i}>
-            <Circle cx={w * s.x} cy={h * s.y} r={r * 1.5} color={s.color} opacity={0.18 + 0.1 * beat} />
-            <Circle cx={w * s.x} cy={h * s.y} r={r} color={s.color} opacity={0.75} />
-          </Group>
-        );
-      })}
-    </Group>
   );
 }

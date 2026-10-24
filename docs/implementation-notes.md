@@ -62,3 +62,29 @@ These are guesses from reading code and headers, not observed failures.
 - Native Android adapter and device testing (`android-adapter.md`).
 - Tune thresholds and extend the taxonomy toward 10-15 categories after device testing.
 - Check usability with deaf and hard-of-hearing users before making any assistive claims.
+
+# REQ-005 Universe V2 notes
+
+Last updated: 2026-10-24. Not yet run on an iPhone; frames were rendered headlessly with CanvasKit (the WASM build of the same Skia API) to review the composition in Dark and Light.
+
+## What changed
+
+- `src/viz/vizModel.ts`: the same adaptive ambient baseline now also tracks `peak`, so short taps register. Onsets (a rise of the foreground intensity above its recent value) emit at most 6 short-lived **bursts**, rate-limited to about 4 per second. `bands` is now band energy (tone balance × intensity), so Forms is ~0 in silence. `flow` drives drift and advances faster with sound; `time` only does slow breathing. `presence` fades the scene between listening and stopped.
+- `src/viz/universePainter.ts`: draws the scene into one `SkPicture` per frame with reused paints, gradient sprites and path builder; the gradient background and far stars are a cached picture. Layers: nebula, parallax stars, central halo, music orbs, light ribbons, rain motes, glints, bursts.
+- `src/viz/SoundCanvasView.tsx`: React renders one `<Picture>` and swaps a single prop per frame (previously ~100 elements and paths). Drops to 15 fps when stopped and settled.
+
+## Motifs (real detections only)
+
+| Detection | Treatment |
+| --- | --- |
+| Speech | Two extra strands fade in; all ribbons drift toward lavender, widen and ripple outward from onsets |
+| Rain | Mint and gold motes drift down, faster and brighter with sound; onsets scatter a small spray |
+| Bell, dog bark, applause | Thin expanding rings with glints, only on onsets; no rings in silence |
+| Music | Three soft orbs, each swelling with its own band's energy |
+| Unknown / quiet | Neutral lavender and white bloom on onsets |
+
+## Not verified on device
+
+- Frame time and JS load on the iPhone 13 Pro Max. Headless recording took about 1.8 ms per frame in WASM; native JSI cost is not measured.
+- Memory: a new `SkPicture` per frame is left to garbage collection. Watch memory in Instruments during a long session.
+- Onset sensitivity (`ONSET_MIN`, `PEAK_WEIGHT`) is tuned on synthetic inputs only.
