@@ -1,6 +1,13 @@
-import { useColorScheme } from 'react-native';
+import { createContext, createElement, useContext, useMemo, useState, type ReactNode } from 'react';
+
+export type ThemeMode = 'dark' | 'light';
 
 export interface Palette {
+  mode: ThemeMode;
+  /** Artistic lavender accent (REQ-002 token). */
+  art: string;
+  /** Background gradient of the artwork container. */
+  vizBg: [string, string];
   bg: string;
   card: string;
   text: string;
@@ -18,12 +25,15 @@ export interface Palette {
 }
 
 const light: Palette = {
-  bg: '#F3F4FA',
+  mode: 'light',
+  art: '#7066B5',
+  vizBg: ['#F5F7FC', '#DCDFF5'],
+  bg: '#F5F7FC',
   card: '#FFFFFF',
-  text: '#111827',
-  subtext: '#4B5563',
-  border: '#C7CBD6',
-  primary: '#4338CA',
+  text: '#25344F',
+  subtext: '#52627B',
+  border: '#C7CFE0',
+  primary: '#317D8E',
   onPrimary: '#FFFFFF',
   danger: '#B91C1C',
   onDanger: '#FFFFFF',
@@ -35,13 +45,16 @@ const light: Palette = {
 };
 
 const dark: Palette = {
-  bg: '#0B1020',
-  card: '#151B30',
-  text: '#F3F4F6',
-  subtext: '#B6BDCB',
-  border: '#33406A',
-  primary: '#A5B4FC',
-  onPrimary: '#0B1020',
+  mode: 'dark',
+  art: '#C5ADFF',
+  vizBg: ['#0B1120', '#1B1340'],
+  bg: '#0B1120',
+  card: '#172438',
+  text: '#F5F8F8',
+  subtext: '#B9C7D1',
+  border: '#2C3E57',
+  primary: '#73EDD3',
+  onPrimary: '#0B1120',
   danger: '#FCA5A5',
   onDanger: '#450A0A',
   live: '#FCA5A5',
@@ -51,8 +64,26 @@ const dark: Palette = {
   errorText: '#FECACA',
 };
 
+interface ThemeValue {
+  palette: Palette;
+  setMode: (mode: ThemeMode) => void;
+}
+
+const ThemeContext = createContext<ThemeValue>({ palette: dark, setMode: () => {} });
+
+/** App-wide Light/Dark. Defaults to Dark; not persisted yet (REQ-002 P1). */
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setMode] = useState<ThemeMode>('dark');
+  const value = useMemo(() => ({ palette: mode === 'dark' ? dark : light, setMode }), [mode]);
+  return createElement(ThemeContext.Provider, { value }, children);
+}
+
 export function usePalette(): Palette {
-  return useColorScheme() === 'dark' ? dark : light;
+  return useContext(ThemeContext).palette;
+}
+
+export function useSetThemeMode(): (mode: ThemeMode) => void {
+  return useContext(ThemeContext).setMode;
 }
 
 /** Minimum touch target, in points. */

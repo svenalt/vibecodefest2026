@@ -19,12 +19,13 @@ import { CurrentSound } from './CurrentSound';
 import { Diagnostics } from './Diagnostics';
 import { Segmented } from './Segmented';
 import { Timeline } from './Timeline';
-import { TOUCH, usePalette } from './theme';
+import { TOUCH, useSetThemeMode, usePalette, type ThemeMode } from './theme';
 
 type VizChoice = 'animated' | 'reduced' | 'off';
 
 export function MainScreen() {
   const c = usePalette();
+  const setThemeMode = useSetThemeMode();
   const insets = useSafeAreaInsets();
   const { session, snapshot, getFeatures } = useSoundSession();
   const deviceReducesMotion = useReduceMotion();
@@ -65,9 +66,12 @@ export function MainScreen() {
         { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 },
       ]}
     >
-      <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
-        SoundCanvas
-      </Text>
+      <View style={styles.brand}>
+        <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
+          SONORA
+        </Text>
+        <Text style={[styles.tagline, { color: c.art }]}>Visualize Your Surroundings</Text>
+      </View>
       <View
         style={[styles.notice, { backgroundColor: c.noticeBg }]}
         accessible
@@ -124,7 +128,7 @@ export function MainScreen() {
       {snapshot.permission === 'denied' && (
         <View style={[styles.notice, { backgroundColor: c.noticeBg }]} accessibilityRole="alert">
           <Text style={[styles.noticeText, { color: c.noticeText }]}>
-            Microphone access is turned off for SoundCanvas. It needs the microphone to hear sounds, and
+            Microphone access is turned off for SONORA. It needs the microphone to hear sounds, and
             nothing is recorded or uploaded. You can allow it in Settings.
           </Text>
           <Pressable
@@ -145,6 +149,16 @@ export function MainScreen() {
       )}
 
       <Timeline events={snapshot.tracker.events} />
+
+      <Segmented<ThemeMode>
+        label="Appearance"
+        value={c.mode}
+        options={[
+          { value: 'dark', label: 'Dark' },
+          { value: 'light', label: 'Light' },
+        ]}
+        onChange={setThemeMode}
+      />
 
       <Segmented<VizChoice>
         label="Visualization"
@@ -180,7 +194,9 @@ export function MainScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, gap: 16 },
-  title: { fontSize: 32, fontWeight: '800' },
+  brand: { gap: 2 },
+  title: { fontSize: 32, fontWeight: '800', letterSpacing: 4 },
+  tagline: { fontSize: 16, fontWeight: '600' },
   notice: { padding: 12, borderRadius: 12, gap: 8 },
   noticeText: { fontSize: 15, lineHeight: 21 },
   controlWrap: { gap: 10 },

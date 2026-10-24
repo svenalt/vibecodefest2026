@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 
 import type { AudioFeatures } from '../core/types';
+import { usePalette } from '../ui/theme';
 import { VizState, type Motif, type VizFrame } from './vizModel';
 
 export type VizMode = 'animated' | 'reduced';
@@ -54,6 +55,7 @@ const PARTICLES = (() => {
  * information that the text UI does not also state.
  */
 export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
+  const c = usePalette();
   const [width, setWidth] = useState(0);
   const [frame, setFrame] = useState<VizFrame>(() => VizState.staticFrame(motif));
   const motifRef = useRef(motif);
@@ -86,7 +88,7 @@ export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
 
   return (
     <View
-      style={{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: '#0B1020' }}
+      style={{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: c.vizBg[0] }}
       onLayout={onLayout}
       // Decorative: the same information is available as text below.
       accessibilityElementsHidden
@@ -95,7 +97,7 @@ export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
       {width > 0 && (
         <Canvas style={{ width, height }}>
           <Rect x={0} y={0} width={width} height={height}>
-            <LinearGradient start={vec(0, 0)} end={vec(width, height)} colors={['#0B1020', '#1B1340']} />
+            <LinearGradient start={vec(0, 0)} end={vec(width, height)} colors={c.vizBg} />
           </Rect>
           <Scene frame={frame} w={width} h={height} />
         </Canvas>
