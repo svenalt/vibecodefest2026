@@ -12,7 +12,8 @@ export type VizMode = 'animated' | 'reduced';
 interface Props {
   motif: Motif;
   mode: VizMode;
-  height: number;
+  /** Rounded card corners; off when the artwork fills the screen. */
+  rounded?: boolean;
   /** Latest features, or null when not listening. Read every frame; never causes a render. */
   getFeatures: () => AudioFeatures | null;
   /** True while the view is not visible; stops the animation loop without unmounting. */
@@ -29,17 +30,21 @@ const IDLE_FRAME_MS = 1000 / 15; // stopped and settled: slow breathing only, so
  *
  * Each frame is recorded imperatively into one Skia picture, so React only swaps a single
  * prop instead of reconciling a tree of shapes.
+ *
+ * Fills its parent; the parent decides whether that is a card or the whole screen. The same
+ * instance serves both, so entering immersive mode never starts a second scene or loop.
  */
-export function SoundCanvasView({ motif, mode, height, getFeatures, paused = false }: Props) {
+export function SoundCanvasView({ motif, mode, rounded = true, getFeatures, paused = false }: Props) {
   const c = usePalette();
-  const [width, setWidth] = useState(0);
+  // The painter always uses the measured size, so the same scene recomposes for a card or the full screen.
+  const [size, setSize] = useState({ width: 0, height: 0 });
   const [picture, setPicture] = useState<SkPicture | null>(null);
   const motifRef = useRef(motif);
   motifRef.current = motif;
 
   const painter = useMemo(
-    () => (width > 0 ? new UniversePainter(width, height, c.mode, c.vizBg) : null),
-    [width, height, c.mode, c.vizBg],
+    () => (size.width > 0 && size.height > 0 ? new UniversePainter(size.width, size.height, c.mode, c.vizBg) : null),
+    [size.width, size.height, c.mode, c.vizBg],
   );
   // One long-lived state so motif changes, pauses and theme switches cross-fade instead of restarting.
   const state = useRef(new VizState()).current;
@@ -69,17 +74,29 @@ export function SoundCanvasView({ motif, mode, height, getFeatures, paused = fal
     return () => cancelAnimationFrame(raf);
   }, [mode, paused, painter, getFeatures, state]);
 
-  const onLayout = (e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width));
+  const onLayout = (e: LayoutChangeEvent) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    const h = Math.round(e.nativeEvent.layout.height);
+    // Same size keeps the same object, so the painter is rebuilt only on a real size change.
+    setSize((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+  };
 
   return (
     <View
-      style={{ height, borderRadius: 20, overflow: 'hidden', backgroundColor: c.vizBg[0] }}
+      style={{
+        flex: 1,
+        borderRadius: rounded ? 20 : 0,
+        overflow: 'hidden',
+        backgroundColor: c.vizBg[0],
+      }}
       onLayout={onLayout}
       // Decorative: the same information is available as text below.
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      {width > 0 && <Canvas style={{ width, height }}>{picture && <Picture picture={picture} />}</Canvas>}
+      {painter && (
+        <Canvas style={{ width: size.width, height: size.height }}>{picture && <Picture picture={picture} />}</Canvas>
+      )}
     </View>
   );
 }

@@ -53,8 +53,8 @@ These are guesses from reading code and headers, not observed failures.
 - Foreground only. The microphone stops when the app leaves the foreground, on audio interruptions and on route changes. Returning to the foreground starts listening again (and clears the in-memory timeline); after an interruption or route change the user has to press Start again.
 - Mono analysis only; no direction, distance or radar.
 - Only six demo categories plus silence are surfaced; everything else is shown as "No confident sound".
-- The icons are emoji. They render differently across OS versions.
-- Raw scores are shown in the UI and diagnostics, labelled as not probabilities.
+- Icons are a small line-icon set drawn with Skia (REQ-006); they are decorative and always paired with text.
+- Raw labels and scores appear only in Settings > Diagnostics (REQ-006), never in the main UI.
 - Not a safety, emergency, navigation or medical system.
 
 ## Follow-up
@@ -88,3 +88,26 @@ Last updated: 2026-10-24. Not yet run on an iPhone; frames were rendered headles
 - Frame time and JS load on the iPhone 13 Pro Max. Headless recording took about 1.8 ms per frame in WASM; native JSI cost is not measured.
 - Memory: a new `SkPicture` per frame is left to garbage collection. Watch memory in Instruments during a long session.
 - Onset sensitivity (`ONSET_MIN`, `PEAK_WEIGHT`) is tuned on synthetic inputs only.
+
+# REQ-006 Premium UI and immersive mode notes
+
+Last updated: 2026-10-24. Typecheck and unit tests pass; **nothing in this section has been run on an iPhone or Android device**, and there was no simulator or web target on the development Mac. The Universe was rendered headlessly with CanvasKit at card size (396×389) and full-screen iPhone 13 Pro Max size (428×926) in both themes to confirm the painter recomposes for a tall viewport without stretching.
+
+## What changed
+
+- **Immersive mode.** An expand button at the top right of the Live artwork ("Enter immersive mode") makes the same artwork fill the screen. `LiveScreen` keeps one tree: the header, sound tile, notices and timeline unmount, and the artwork's container grows from a fixed height to `flex: 1`. `App.tsx` hides the tab bar and status bar while immersed, and Android back leaves immersion. `SoundCanvasView` now always fills its parent and measures width and height itself, so the one painter is rebuilt once for the new size while `VizState`, the frame loop and the session stay as they are. No start/stop, timeline reset, second canvas or second loop.
+- **Immersive overlay** (`ImmersiveOverlay.tsx`): microphone status (text plus icon shape) and an always-visible Exit button at the top, inside the safe area, on an opaque scrim. Blocked permission shows the "Open system settings" action; a capture error shows the message; mic off says the artwork is resting and points to Settings.
+- **Pure Art / Art + Sounds**: a two-option radio group at the bottom (not persisted). Art + Sounds shows an icon and category caption for about 3 s on a real newly confirmed category (`captionKey` in `status.ts`: never for silence, unknown or a stopped mic), and a "Current sound" button to show the current state again. Captions do not fade with Reduce Motion or Reduced visualization.
+- **Visualization setting**: Off removes the artwork and the expand button, explains why on Live, and ends immersion. Reduced shows the still artwork full screen.
+- **Live polish**: `CurrentSound` is a compact tile with plain-English state ("Detected just now", "Listening for sounds", "Not listening", "Microphone blocked", "Listening stopped") and no raw label or score. It is now the Live screen's microphone truth (the header pill was removed). `Timeline` shows the latest 3 sounds with a session-time stamp; "Show all N" expands the full in-memory list.
+- **Icons and tokens**: one 24 pt line-icon set in `icons.ts`, drawn with Skia by `Icon.tsx` (no font or new native dependency). `theme.ts` adds `SPACE`, `RADIUS`, `TYPE` scales and scrim, muted-card and icon-well colours. Tab bar, Settings (grouped cards), Segmented and Coming soon screens use them.
+- **Diagnostics** now also shows the current event's raw label and score.
+
+## Not verified on device
+
+- iPhone 13 Pro Max screenshots of Live Dark, Live Light, Immersive Pure Art and Immersive Art + Sounds: **not taken**.
+- Whether `StatusBar hidden` takes effect on iOS in this build, and how hiding it shifts Android insets.
+- Painter rebuild cost when toggling (one `UniversePainter` per size change) and any frame hitch on entering or leaving.
+- VoiceOver/TalkBack order in the overlay, large Dynamic Type layouts and real contrast over the moving artwork.
+- Skia icon rendering cost: each icon is a small `Canvas` (about 10 on Live).
+

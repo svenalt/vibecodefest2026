@@ -5,16 +5,16 @@ import { useSession, type VizChoice } from '../app/SessionProvider';
 import { Diagnostics } from './Diagnostics';
 import { MicStatus } from './MicStatus';
 import { Segmented } from './Segmented';
-import { TOUCH, usePalette, useSetThemeMode, type ThemeMode } from './theme';
+import { RADIUS, SPACE, TOUCH, TYPE, usePalette, useSetThemeMode, type ThemeMode } from './theme';
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   const c = usePalette();
   return (
     <View style={styles.group}>
-      <Text style={[styles.groupTitle, { color: c.text }]} accessibilityRole="header">
+      <Text style={[styles.groupTitle, { color: c.subtext }]} accessibilityRole="header">
         {title}
       </Text>
-      {children}
+      <View style={[styles.groupCard, { backgroundColor: c.card, borderColor: c.border }]}>{children}</View>
     </View>
   );
 }
@@ -47,9 +47,9 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
             listening ? 'Turns the microphone off' : 'Turns the microphone on and analyses sound on this device'
           }
           accessibilityState={{ busy, disabled: busy }}
-          style={[
+          style={({ pressed }) => [
             styles.button,
-            { backgroundColor: listening ? c.danger : c.primary, opacity: busy ? 0.6 : 1 },
+            { backgroundColor: listening ? c.danger : c.primary, opacity: busy ? 0.6 : pressed ? 0.8 : 1 },
           ]}
         >
           <Text style={[styles.buttonText, { color: listening ? c.onDanger : c.onPrimary }]}>
@@ -107,6 +107,9 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
             Reduce Motion is on for this device, so the visualization starts in Reduced mode.
           </Text>
         )}
+        <Text style={[styles.hint, { color: c.subtext }]}>
+          Reduced shows a still artwork. Off hides the artwork and immersive mode; sound labels still work.
+        </Text>
       </Group>
 
       <Group title="Diagnostics">
@@ -115,7 +118,7 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
           accessibilityRole="button"
           accessibilityLabel={showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
           accessibilityState={{ expanded: showDiagnostics }}
-          style={[styles.linkButton, { borderColor: c.border }]}
+          style={({ pressed }) => [styles.linkButton, { borderColor: c.border, opacity: pressed ? 0.6 : 1 }]}
         >
           <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>
             {showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
@@ -136,15 +139,16 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingBottom: 24, gap: 24 },
-  title: { fontSize: 28, fontWeight: '800' },
-  group: { gap: 10 },
-  groupTitle: { fontSize: 20, fontWeight: '700' },
-  notice: { padding: 12, borderRadius: 12, gap: 8 },
-  noticeText: { fontSize: 15, lineHeight: 21 },
+  content: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.xl, gap: SPACE.xl },
+  title: TYPE.display,
+  group: { gap: SPACE.sm },
+  groupTitle: { ...TYPE.eyebrow, paddingHorizontal: SPACE.xs },
+  groupCard: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACE.lg, gap: SPACE.md },
+  notice: { padding: SPACE.md, borderRadius: RADIUS.md, gap: SPACE.sm },
+  noticeText: TYPE.callout,
   button: {
     minHeight: 60,
-    borderRadius: 16,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
@@ -153,11 +157,11 @@ const styles = StyleSheet.create({
   linkButton: {
     minHeight: TOUCH,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
   hint: { fontSize: 14, lineHeight: 20 },
-  about: { fontSize: 14, lineHeight: 21 },
+  about: { ...TYPE.callout },
 });

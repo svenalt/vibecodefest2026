@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { TOUCH, usePalette } from './theme';
+import { RADIUS, SPACE, TOUCH, usePalette } from './theme';
 
 interface Props<T extends string> {
   label: string;
@@ -25,11 +25,12 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
               accessibilityRole="radio"
               accessibilityLabel={o.label}
               accessibilityState={{ selected, checked: selected }}
-              style={[
+              style={({ pressed }) => [
                 styles.option,
                 {
-                  backgroundColor: selected ? c.primary : c.card,
+                  backgroundColor: selected ? c.primary : c.cardMuted,
                   borderColor: selected ? c.primary : c.border,
+                  opacity: pressed ? 0.75 : 1,
                 },
               ]}
             >
@@ -46,16 +47,16 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 8 },
+  wrap: { gap: SPACE.sm },
   label: { fontSize: 16, fontWeight: '600' },
-  row: { flexDirection: 'row', gap: 8 },
+  row: { flexDirection: 'row', gap: SPACE.sm },
   option: {
     flex: 1,
     minHeight: TOUCH,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: RADIUS.sm,
     borderWidth: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACE.sm,
   },
 });

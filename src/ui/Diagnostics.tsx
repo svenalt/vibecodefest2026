@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { SessionSnapshot } from '../core/soundSession';
 import { TAXONOMY_VERSION } from '../core/yamnet/taxonomy';
+import { formatScore } from './format';
 import { usePalette } from './theme';
 
 const ms = (v: number | null) => (v === null ? 'n/a' : `${Math.round(v)} ms`);
@@ -11,6 +12,7 @@ export function Diagnostics({ snapshot }: { snapshot: SessionSnapshot }) {
   const c = usePalette();
   const { capture, diagnostics: d, permission, error } = snapshot;
   const last = d.lastPrediction;
+  const { current } = snapshot.tracker;
 
   const rows: Array<[string, string]> = [
     ['Microphone permission', permission],
@@ -35,6 +37,10 @@ export function Diagnostics({ snapshot }: { snapshot: SessionSnapshot }) {
     [
       'Last prediction',
       last ? `${last.category} / "${last.rawLabel}" / ${last.score.toFixed(3)}` : 'n/a',
+    ],
+    [
+      'Current event (raw)',
+      current.kind === 'event' ? `${current.category} / "${current.rawLabel}" / ${formatScore(current.score)}` : current.kind,
     ],
     ['Model / platform', last ? `${last.model} / ${last.platform}` : 'yamnet / n/a'],
     ['Taxonomy version', String(TAXONOMY_VERSION)],

@@ -1,73 +1,68 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { Current } from '../core/eventTracker';
-import type { SoundPrediction } from '../core/types';
-import { CATEGORY_DISPLAY } from '../core/yamnet/taxonomy';
-import { formatScore } from './format';
+import { Icon } from './Icon';
 import { CATEGORY_ICON } from './icons';
-import { usePalette } from './theme';
+import { MIC_ICON } from './MicStatus';
+import { soundSummary, type MicKind } from './status';
+import { RADIUS, SPACE, TYPE, usePalette } from './theme';
 
 interface Props {
-  listening: boolean;
+  mic: MicKind;
   current: Current;
-  lastPrediction: SoundPrediction | null;
+  hasPrediction: boolean;
 }
 
-/** The "what is the phone hearing now" card. Text and icon only; no dependence on colour or motion. */
-export function CurrentSound({ listening, current, lastPrediction }: Props) {
+/**
+ * The "what is the phone hearing now" tile. Text and icon carry everything; colour only
+ * reinforces it. Raw model labels and scores stay in Diagnostics.
+ */
+export function CurrentSound({ mic, current, hasPrediction }: Props) {
   const c = usePalette();
+  const s = soundSummary(mic, current, hasPrediction);
+  const icon = s.category ? CATEGORY_ICON[s.category] : MIC_ICON[mic];
 
-  let icon = '🎙️';
-  let title = 'Not listening';
-  let detail = 'Start listening in the Settings tab to begin.';
-  if (listening) {
-    if (current.kind === 'event') {
-      icon = CATEGORY_ICON[current.category];
-      title = CATEGORY_DISPLAY[current.category];
-      detail = `Model label: ${current.rawLabel}. Raw score ${formatScore(current.score)} (not a probability).`;
-    } else if (current.kind === 'silence') {
-      icon = CATEGORY_ICON.silence;
-      title = CATEGORY_DISPLAY.silence;
-      detail = 'The model hears very little right now.';
-    } else {
-      icon = CATEGORY_ICON.unknown;
-      title = CATEGORY_DISPLAY.unknown;
-      detail = lastPrediction
-        ? 'Listening. Nothing matched one of the supported sounds with enough confidence.'
-        : 'Listening. Waiting for the first result, which takes about a second.';
-    }
-  }
+  const surface =
+    s.tone === 'alert'
+      ? { backgroundColor: c.noticeBg, borderColor: c.noticeBg }
+      : s.tone === 'off'
+        ? { backgroundColor: c.cardMuted, borderColor: c.border }
+        : { backgroundColor: c.card, borderColor: s.tone === 'event' ? c.primary : c.border };
+  const titleColor = s.tone === 'alert' ? c.noticeText : c.text;
+  const detailColor = s.tone === 'alert' ? c.noticeText : c.subtext;
+  const iconColor = s.tone === 'event' ? c.primary : s.tone === 'calm' ? c.art : s.tone === 'alert' ? c.noticeText : c.subtext;
 
   return (
     <View
-      style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
+      style={[styles.tile, surface]}
       accessible
       accessibilityRole="summary"
-      accessibilityLabel={`Current sound: ${title}. ${detail}`}
+      accessibilityLabel={`Current sound: ${s.title}. ${s.detail}.`}
       accessibilityLiveRegion="polite"
     >
-      <Text style={styles.icon} accessibilityElementsHidden importantForAccessibility="no">
-        {icon}
-      </Text>
+      <View style={[styles.well, { backgroundColor: s.tone === 'alert' ? 'transparent' : c.iconWell }]}>
+        <Icon name={icon} color={iconColor} size={28} />
+      </View>
       <View style={styles.texts}>
-        <Text style={[styles.title, { color: c.text }]}>{title}</Text>
-        <Text style={[styles.detail, { color: c.subtext }]}>{detail}</Text>
+        <Text style={[styles.title, { color: titleColor }]}>{s.title}</Text>
+        <Text style={[styles.detail, { color: detailColor }]}>{s.detail}</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  tile: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    padding: 16,
-    borderRadius: 16,
+    gap: SPACE.md + 2,
+    paddingVertical: SPACE.md + 2,
+    paddingHorizontal: SPACE.lg,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
   },
-  icon: { fontSize: 44 },
-  texts: { flex: 1, gap: 4 },
-  title: { fontSize: 26, fontWeight: '700' },
-  detail: { fontSize: 15, lineHeight: 21 },
+  well: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  texts: { flex: 1, gap: 2 },
+  title: TYPE.title,
+  detail: TYPE.callout,
 });
