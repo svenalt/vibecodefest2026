@@ -15,31 +15,17 @@ export const MIC_ICON: Record<MicKind, IconName> = {
   error: 'alert',
 };
 
-/**
- * Always-readable microphone state: text plus a distinct icon shape, never colour alone.
- * `overlay` draws it on an opaque scrim so it stays legible over the artwork.
- */
-export function MicStatus({
-  snapshot,
-  busy,
-  variant = 'default',
-}: {
-  snapshot: SessionSnapshot;
-  busy: boolean;
-  variant?: 'default' | 'overlay';
-}) {
+/** Always-readable microphone state (shown in Settings): text plus a distinct icon shape, never colour alone. */
+export function MicStatus({ snapshot, busy }: { snapshot: SessionSnapshot; busy: boolean }) {
   const c = usePalette();
   const { kind, label } = micState(snapshot, busy);
-  const overlay = variant === 'overlay';
   const bad = kind === 'blocked' || kind === 'error';
-  const fg = kind === 'on' ? c.live : bad ? c.errorText : overlay ? c.onScrim : c.subtext;
+  const fg = kind === 'on' ? c.live : bad ? c.errorText : c.subtext;
   return (
     <View
       style={[
         styles.pill,
-        overlay
-          ? { backgroundColor: bad ? c.errorBg : c.scrim, borderColor: c.scrimBorder }
-          : { backgroundColor: c.card, borderColor: kind === 'on' ? c.live : c.border },
+        { backgroundColor: c.cardMuted, borderColor: kind === 'on' ? c.live : c.border },
       ]}
       accessible
       accessibilityRole="text"

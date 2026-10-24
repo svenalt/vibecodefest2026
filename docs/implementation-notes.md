@@ -95,19 +95,22 @@ Last updated: 2026-10-24. Typecheck and unit tests pass; **nothing in this secti
 
 ## What changed
 
-- **Immersive mode.** An expand button at the top right of the Live artwork ("Enter immersive mode") makes the same artwork fill the screen. `LiveScreen` keeps one tree: the header, sound tile, notices and timeline unmount, and the artwork's container grows from a fixed height to `flex: 1`. `App.tsx` hides the tab bar and status bar while immersed, and Android back leaves immersion. `SoundCanvasView` now always fills its parent and measures width and height itself, so the one painter is rebuilt once for the new size while `VizState`, the frame loop and the session stay as they are. No start/stop, timeline reset, second canvas or second loop.
-- **Immersive overlay** (`ImmersiveOverlay.tsx`): microphone status (text plus icon shape) and an always-visible Exit button at the top, inside the safe area, on an opaque scrim. Blocked permission shows the "Open system settings" action; a capture error shows the message; mic off says the artwork is resting and points to Settings.
+- **Live-only navigation.** The REQ-004 four-tab shell is gone: no bottom bar, and Sound Walk and Gallery are removed (`TabBar.tsx` and `ComingSoonScreen.tsx` deleted). Live is the root screen. A gear button ("Open settings") at the top right of the Live header opens Settings as a secondary screen with a "Back to Live" button. View state is a pure reducer (`src/app/navigation.ts`, unit-tested): Android back leaves immersion, then Settings, then the app. Live stays mounted and paused while Settings is open, and `SessionProvider` stays above both, so switching never starts or stops listening or clears recent sounds.
+- **Microphone status only in Settings** (product decision, overriding the REQ-006 text that asks for it on Live and in immersion). Live and immersive mode have no ON/OFF indicator. They still show a blocked permission (with "Open system settings") and capture errors, so failures are not silent. The sound tile states plainly when nothing is being heard ("Not listening"), and Live offers "Open Settings to start listening" when listening is off or has failed.
+- **Immersive mode.** An expand button at the top right of the Live artwork ("Enter immersive mode") makes the same artwork fill the screen. `LiveScreen` keeps one tree: the header, sound tile, notices and timeline unmount, and the artwork's container grows from a fixed height to `flex: 1`. The status bar is hidden while immersed. `SoundCanvasView` always fills its parent and measures its own size, so the one painter is rebuilt once for the new size while `VizState`, the frame loop and the session stay as they are. No start/stop, timeline reset, second canvas or second loop.
+- **Immersive overlay** (`ImmersiveOverlay.tsx`): an always-visible Exit button at the top right inside the safe area, on an opaque scrim, plus the blocked/error notices above.
 - **Pure Art / Art + Sounds**: a two-option radio group at the bottom (not persisted). Art + Sounds shows an icon and category caption for about 3 s on a real newly confirmed category (`captionKey` in `status.ts`: never for silence, unknown or a stopped mic), and a "Current sound" button to show the current state again. Captions do not fade with Reduce Motion or Reduced visualization.
 - **Visualization setting**: Off removes the artwork and the expand button, explains why on Live, and ends immersion. Reduced shows the still artwork full screen.
-- **Live polish**: `CurrentSound` is a compact tile with plain-English state ("Detected just now", "Listening for sounds", "Not listening", "Microphone blocked", "Listening stopped") and no raw label or score. It is now the Live screen's microphone truth (the header pill was removed). `Timeline` shows the latest 3 sounds with a session-time stamp; "Show all N" expands the full in-memory list.
-- **Icons and tokens**: one 24 pt line-icon set in `icons.ts`, drawn with Skia by `Icon.tsx` (no font or new native dependency). `theme.ts` adds `SPACE`, `RADIUS`, `TYPE` scales and scrim, muted-card and icon-well colours. Tab bar, Settings (grouped cards), Segmented and Coming soon screens use them.
+- **Live polish**: `CurrentSound` is a compact tile with plain-English state ("Detected just now", "Listening for sounds", "Not listening", "Microphone blocked", "Listening stopped") and no raw label or score. `Timeline` shows the latest 3 sounds with a session-time stamp; "Show all N" expands the full in-memory list.
+- **Icons and tokens**: one 24 pt line-icon set in `icons.ts` (including a generated gear), drawn with Skia by `Icon.tsx` (no font or new native dependency). `theme.ts` adds `SPACE`, `RADIUS`, `TYPE` scales and scrim, muted-card and icon-well colours. Settings uses grouped cards with icons.
 - **Diagnostics** now also shows the current event's raw label and score.
 
 ## Not verified on device
 
-- iPhone 13 Pro Max screenshots of Live Dark, Live Light, Immersive Pure Art and Immersive Art + Sounds: **not taken**.
+- iPhone 13 Pro Max screenshots of Live Dark, Live Light, Settings, Immersive Pure Art and Immersive Art + Sounds: **not taken**.
+- Android hardware back through immersion → Settings → Live.
 - Whether `StatusBar hidden` takes effect on iOS in this build, and how hiding it shifts Android insets.
 - Painter rebuild cost when toggling (one `UniversePainter` per size change) and any frame hitch on entering or leaving.
 - VoiceOver/TalkBack order in the overlay, large Dynamic Type layouts and real contrast over the moving artwork.
-- Skia icon rendering cost: each icon is a small `Canvas` (about 10 on Live).
+- Skia icon rendering cost: each icon is a small `Canvas` (about 8 on Live).
 

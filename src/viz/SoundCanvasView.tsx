@@ -94,8 +94,12 @@ export function SoundCanvasView({ motif, mode, rounded = true, getFeatures, paus
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
+      {/* Absolutely positioned: the canvas's own (possibly stale) size must never hold its container
+          open, or leaving immersive mode would keep the full-screen height. */}
       {painter && (
-        <Canvas style={{ width: size.width, height: size.height }}>{picture && <Picture picture={picture} />}</Canvas>
+        <Canvas style={{ position: 'absolute', left: 0, top: 0, width: size.width, height: size.height }}>
+          {picture && <Picture picture={picture} />}
+        </Canvas>
       )}
     </View>
   );

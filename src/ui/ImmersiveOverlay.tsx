@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SessionSnapshot } from '../core/soundSession';
 import { Icon } from './Icon';
 import { CATEGORY_ICON } from './icons';
-import { MIC_ICON, MicStatus } from './MicStatus';
+import { MIC_ICON } from './MicStatus';
 import { captionKey, micState, soundSummary, type SoundSummary } from './status';
 import { RADIUS, SPACE, TOUCH_MIN, TYPE, usePalette } from './theme';
 
@@ -25,7 +25,8 @@ interface Props {
 
 /**
  * Controls drawn over the full-screen artwork. Everything sits on an opaque-enough scrim inside
- * the safe area: microphone truth and Exit are always visible, never hidden behind a gesture.
+ * the safe area. Exit is always visible, never hidden behind a gesture. Microphone status lives
+ * in Settings; only a blocked permission or a capture error is surfaced here, so neither fails silently.
  */
 export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationChange, onExit, reduceMotion }: Props) {
   const c = usePalette();
@@ -90,7 +91,6 @@ export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationC
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <View style={[styles.top, { top: insets.top + SPACE.sm, left: side, right: side }]} pointerEvents="box-none">
         <View style={styles.topRow} pointerEvents="box-none">
-          <MicStatus snapshot={snapshot} busy={busy} variant="overlay" />
           <Pressable
             onPress={onExit}
             accessibilityRole="button"
@@ -125,13 +125,6 @@ export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationC
             </Text>
             <Text style={[styles.noticeText, { color: c.errorText }]}>
               Exit, then use Settings to start listening again.
-            </Text>
-          </View>
-        )}
-        {mic.kind === 'off' && (
-          <View style={[styles.hint, scrim]}>
-            <Text style={[styles.hintText, { color: c.onScrim }]}>
-              Not listening, so the artwork is resting. Turn listening on in Settings.
             </Text>
           </View>
         )}
@@ -230,7 +223,7 @@ export function EnterImmersiveButton({ onPress }: { onPress: () => void }) {
 
 const styles = StyleSheet.create({
   top: { position: 'absolute', gap: SPACE.sm },
-  topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: SPACE.sm },
+  topRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   round: {
     width: TOUCH_MIN + 4,
     height: TOUCH_MIN + 4,
@@ -251,8 +244,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE.lg,
   },
   actionText: { fontSize: 16, fontWeight: '700' },
-  hint: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: RADIUS.md, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm },
-  hintText: TYPE.callout,
   bottom: { position: 'absolute', alignItems: 'center', gap: SPACE.md },
   caption: {
     flexDirection: 'row',

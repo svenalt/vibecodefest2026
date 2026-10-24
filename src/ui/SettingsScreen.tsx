@@ -1,26 +1,34 @@
 import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession, type VizChoice } from '../app/SessionProvider';
 import { Diagnostics } from './Diagnostics';
+import { Icon } from './Icon';
+import type { IconName } from './icons';
 import { MicStatus } from './MicStatus';
 import { Segmented } from './Segmented';
-import { RADIUS, SPACE, TOUCH, TYPE, usePalette, useSetThemeMode, type ThemeMode } from './theme';
+import { RADIUS, SPACE, TOUCH, TOUCH_MIN, TYPE, usePalette, useSetThemeMode, type ThemeMode } from './theme';
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
+function Group({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
   const c = usePalette();
   return (
     <View style={styles.group}>
-      <Text style={[styles.groupTitle, { color: c.subtext }]} accessibilityRole="header">
-        {title}
-      </Text>
+      <View style={styles.groupHead}>
+        <Icon name={icon} color={c.art} size={16} weight={2.2} />
+        <Text style={[styles.groupTitle, { color: c.subtext }]} accessibilityRole="header">
+          {title}
+        </Text>
+      </View>
       <View style={[styles.groupCard, { backgroundColor: c.card, borderColor: c.border }]}>{children}</View>
     </View>
   );
 }
 
-export function SettingsScreen({ topInset }: { topInset: number }) {
+/** Secondary screen over Live. Back returns to the same running session and artwork. */
+export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const c = usePalette();
+  const insets = useSafeAreaInsets();
   const setThemeMode = useSetThemeMode();
   const { snapshot, busy, toggleListening, vizChoice, setVizChoice, effectiveViz, deviceReducesMotion } =
     useSession();
@@ -30,13 +38,28 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
   return (
     <ScrollView
       style={{ backgroundColor: c.bg }}
-      contentContainerStyle={[styles.content, { paddingTop: topInset + 12 }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + SPACE.sm, paddingBottom: insets.bottom + SPACE.xl },
+      ]}
     >
-      <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
-        Settings
-      </Text>
+      <View style={styles.header}>
+        <Pressable
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Back to Live"
+          hitSlop={6}
+          style={({ pressed }) => [styles.back, { backgroundColor: pressed ? c.iconWell : 'transparent' }]}
+        >
+          <Icon name="back" color={c.primary} size={22} weight={2.2} />
+          <Text style={[styles.backText, { color: c.primary }]}>Live</Text>
+        </Pressable>
+        <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
+          Settings
+        </Text>
+      </View>
 
-      <Group title="Listening">
+      <Group title="Listening" icon="mic">
         <MicStatus snapshot={snapshot} busy={busy} />
         <Pressable
           onPress={toggleListening}
@@ -79,7 +102,7 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
         )}
       </Group>
 
-      <Group title="Appearance">
+      <Group title="Appearance" icon="appearance">
         <Segmented<ThemeMode>
           label="Theme"
           value={c.mode}
@@ -91,7 +114,7 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
         />
       </Group>
 
-      <Group title="Visualization">
+      <Group title="Visualization" icon="artwork">
         <Segmented<VizChoice>
           label="Motion"
           value={effectiveViz}
@@ -112,7 +135,7 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
         </Text>
       </Group>
 
-      <Group title="Diagnostics">
+      <Group title="Diagnostics" icon="diagnostics">
         <Pressable
           onPress={() => setShowDiagnostics((v) => !v)}
           accessibilityRole="button"
@@ -127,7 +150,7 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
         {showDiagnostics && <Diagnostics snapshot={snapshot} />}
       </Group>
 
-      <Group title="About">
+      <Group title="About" icon="about">
         <Text style={[styles.about, { color: c.subtext }]}>
           SONORA is an experimental prototype. It is not reliable for safety, emergencies, navigation or
           medical decisions. Sound is analysed on this device while the microphone is on; no audio is
@@ -140,9 +163,23 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.xl, gap: SPACE.xl },
+  header: { gap: SPACE.xs },
+  back: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    minHeight: TOUCH_MIN,
+    paddingRight: SPACE.md,
+    paddingLeft: SPACE.xs,
+    marginLeft: -SPACE.sm,
+    borderRadius: RADIUS.pill,
+  },
+  backText: { fontSize: 17, fontWeight: '600' },
   title: TYPE.display,
   group: { gap: SPACE.sm },
-  groupTitle: { ...TYPE.eyebrow, paddingHorizontal: SPACE.xs },
+  groupHead: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm - 2, paddingHorizontal: SPACE.xs },
+  groupTitle: TYPE.eyebrow,
   groupCard: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACE.lg, gap: SPACE.md },
   notice: { padding: SPACE.md, borderRadius: RADIUS.md, gap: SPACE.sm },
   noticeText: TYPE.callout,

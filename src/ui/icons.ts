@@ -1,16 +1,33 @@
 import type { PredictionCategory } from '../core/types';
 
+/** Eight-tooth gear outline on the 24 pt grid, centred at 12,12. */
+function gearPath(): string {
+  const pt = (r: number, deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return `${(12 + r * Math.cos(a)).toFixed(2)} ${(12 + r * Math.sin(a)).toFixed(2)}`;
+  };
+  const parts: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    const a = i * 45;
+    parts.push(`${i === 0 ? 'M' : 'L'}${pt(7, a - 17)}`, `L${pt(9.6, a - 9)}`, `L${pt(9.6, a + 9)}`, `L${pt(7, a + 17)}`);
+  }
+  return `${parts.join(' ')}Z`;
+}
+
 /**
  * One line-icon family on a 24 pt grid, stroked with round caps and joins. Drawn with Skia,
  * which the app already ships, so icons need no font or extra native dependency.
  * Icons are decorative: a text label always carries the meaning.
  */
 export const ICON_PATHS = {
-  // Tabs
-  live: 'M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M8.5 8.5a5 5 0 0 0 0 7 M15.5 8.5a5 5 0 0 1 0 7 M5.6 5.6a9 9 0 0 0 0 12.8 M18.4 5.6a9 9 0 0 1 0 12.8',
-  walk: 'M3 19a3 3 0 1 0 6 0a3 3 0 1 0 -6 0 M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15 M15 5a3 3 0 1 0 6 0a3 3 0 1 0 -6 0',
-  gallery: 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M3.5 17l5-5 4 4 2.5-2.5 5.5 5.5 M14 8.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0 -3 0',
-  settings: 'M4 7h9 M17 7h3 M4 17h3 M11 17h9 M13 7a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M7 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0',
+  // Navigation
+  gear: `${gearPath()} M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0`,
+  back: 'M15 5l-7 7 7 7',
+  // Settings groups
+  appearance: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
+  diagnostics: 'M3 12h4l2.5-6 5 12 2.5-6H21',
+  about: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0 M12 11v5.5 M12 7.5h.01',
+  artwork: 'M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M8.5 8.5a5 5 0 0 0 0 7 M15.5 8.5a5 5 0 0 1 0 7 M5.6 5.6a9 9 0 0 0 0 12.8 M18.4 5.6a9 9 0 0 1 0 12.8',
   // Controls
   expand: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5',
   collapse: 'M9 4v5H4 M15 4v5h5 M20 15h-5v5 M4 15h5v5',

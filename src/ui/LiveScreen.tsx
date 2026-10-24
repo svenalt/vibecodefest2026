@@ -10,21 +10,23 @@ import {
   useWindowDimensions,
   type ScrollViewInstance,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession } from '../app/SessionProvider';
 import { SoundCanvasView } from '../viz/SoundCanvasView';
 import { motifForCurrent } from '../viz/vizModel';
 import { CurrentSound } from './CurrentSound';
+import { Icon } from './Icon';
 import { EnterImmersiveButton, ImmersiveOverlay, type Presentation } from './ImmersiveOverlay';
 import { micState } from './status';
-import { RADIUS, SPACE, TOUCH, TYPE, usePalette } from './theme';
+import { RADIUS, SPACE, TOUCH, TOUCH_MIN, TYPE, usePalette } from './theme';
 import { Timeline } from './Timeline';
 
 interface Props {
   active: boolean;
-  topInset: number;
   immersive: boolean;
   onImmersiveChange: (immersive: boolean) => void;
+  onOpenSettings: () => void;
 }
 
 /**
@@ -32,8 +34,9 @@ interface Props {
  * the artwork's container grows to the whole screen, so the one canvas, its loop and its state
  * stay mounted throughout.
  */
-export function LiveScreen({ active, topInset, immersive, onImmersiveChange }: Props) {
+export function LiveScreen({ active, immersive, onImmersiveChange, onOpenSettings }: Props) {
   const c = usePalette();
+  const insets = useSafeAreaInsets();
   const { snapshot, getFeatures, busy, effectiveViz, deviceReducesMotion } = useSession();
   const { height: windowHeight } = useWindowDimensions();
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -53,17 +56,35 @@ export function LiveScreen({ active, topInset, immersive, onImmersiveChange }: P
     <ScrollView
       ref={scrollRef}
       style={{ backgroundColor: immersive ? c.vizBg[0] : c.bg }}
-      contentContainerStyle={immersive ? styles.immersiveContent : [styles.content, { paddingTop: topInset + SPACE.md }]}
+      contentContainerStyle={
+        immersive
+          ? styles.immersiveContent
+          : [styles.content, { paddingTop: insets.top + SPACE.md, paddingBottom: insets.bottom + SPACE.xl }]
+      }
       scrollEnabled={!immersive}
       bounces={!immersive}
       showsVerticalScrollIndicator={!immersive}
     >
       {!immersive && (
-        <View style={styles.brand}>
-          <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
-            SONORA
-          </Text>
-          <Text style={[styles.tagline, { color: c.art }]}>Visualize Your Surroundings</Text>
+        <View style={styles.header}>
+          <View style={styles.brand}>
+            <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
+              SONORA
+            </Text>
+            <Text style={[styles.tagline, { color: c.art }]}>Visualize Your Surroundings</Text>
+          </View>
+          <Pressable
+            onPress={onOpenSettings}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.gear,
+              { backgroundColor: pressed ? c.iconWell : c.card, borderColor: c.border },
+            ]}
+          >
+            <Icon name="gear" color={c.text} size={24} />
+          </Pressable>
         </View>
       )}
 
@@ -100,6 +121,19 @@ export function LiveScreen({ active, topInset, immersive, onImmersiveChange }: P
 
       {!immersive && <CurrentSound mic={mic.kind} current={current} hasPrediction={snapshot.tracker.lastPrediction !== null} />}
 
+      {/* Listening is controlled in Settings; offer the way there whenever it is not running. */}
+      {!immersive && (mic.kind === 'off' || mic.kind === 'error') && (
+        <Pressable
+          onPress={onOpenSettings}
+          accessibilityRole="button"
+          accessibilityLabel="Open settings to start listening"
+          style={({ pressed }) => [styles.linkButton, { borderColor: c.border, opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Icon name="gear" color={c.primary} size={20} weight={2} />
+          <Text style={[styles.linkText, { color: c.primary }]}>Open Settings to start listening</Text>
+        </Pressable>
+      )}
+
       {!immersive && snapshot.permission === 'denied' && (
         <View style={[styles.notice, { backgroundColor: c.noticeBg }]} accessibilityRole="alert">
           <Text style={[styles.noticeText, { color: c.noticeText }]}>
@@ -128,10 +162,19 @@ export function LiveScreen({ active, topInset, immersive, onImmersiveChange }: P
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.xl, gap: SPACE.lg },
+  content: { paddingHorizontal: SPACE.lg, gap: SPACE.lg },
   immersiveContent: { flexGrow: 1 },
   fill: { flex: 1 },
-  brand: { gap: 0 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACE.md },
+  brand: { flexShrink: 1 },
+  gear: {
+    width: TOUCH_MIN + 4,
+    height: TOUCH_MIN + 4,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: 4 },
   tagline: { fontSize: 15, fontWeight: '600' },
   vizOff: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACE.lg },
@@ -140,10 +183,13 @@ const styles = StyleSheet.create({
   noticeText: TYPE.callout,
   linkButton: {
     minHeight: TOUCH,
+    flexDirection: 'row',
+    gap: SPACE.sm,
     borderWidth: 1,
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACE.lg,
   },
+  linkText: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
 });
