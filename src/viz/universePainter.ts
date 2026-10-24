@@ -109,10 +109,10 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const fract = (v: number) => v - Math.floor(v);
 
 /** A few motes always drift just above the crests; rain adds the rest. */
-const CALM_MOTES = 24;
+const CALM_MOTES = 42;
 const MOTES = (() => {
   const r = seeded(424242);
-  return Array.from({ length: 40 }, (_, i) => {
+  return Array.from({ length: 62 }, (_, i) => {
     const calm = i < CALM_MOTES;
     return {
       // Calm motes cluster over the middle crests; rain motes spread across the whole width.
@@ -134,6 +134,7 @@ const GLINTS = (() => {
   return Array.from({ length: 6 }, (_, i) => ({ u: 0.1 + r() * 0.8, phase: r() * TAU, sheet: i % 2 ? WARM : FRONT }));
 })();
 
+const SPARKS_PER_BURST = 7;
 const BURST_HUE: Record<Motif, Hue> = { waves: 'lav', pulses: 'gold', particles: 'mint', forms: 'aqua', ambient: 'shine' };
 
 /**
@@ -467,6 +468,26 @@ export class UniversePainter {
         this.sparkle(x, field.threadY(FRONT, -1, mid), (3 + 5 * s) * this.scale, s * fade);
       }
     }
+    this.sparks(b, origin, s, fade);
+  }
+
+  /** A small spray of sparks thrown up from the crest where an onset rose; they drift and fade. */
+  private sparks(b: Burst, origin: number, s: number, fade: number) {
+    const { field } = this;
+    const { zone } = field.layout;
+    const grow = 1 - (1 - clamp01(b.age / BURST_LIFE_S)) ** 3;
+    const crest = field.threadY(FRONT, -1, Math.round(clamp01(origin) * (field.n - 1)));
+    for (let k = 0; k < SPARKS_PER_BURST; k++) {
+      const a = fract(b.seed * 7.31 + k * 0.618);
+      const c = fract(b.seed * 3.17 + k * 0.382);
+      const x = this.xAt(origin + (a - 0.5) * 0.22 * (0.3 + grow));
+      const y = crest - zone * (0.02 + (0.08 + 0.2 * c) * grow);
+      const hue: Hue = b.motif === 'ambient' ? (k % 2 ? 'amber' : 'aqua') : k % 3 ? BURST_HUE[b.motif] : 'gold';
+      const r = (0.8 + 1.1 * c) * this.scale;
+      const alpha = s * fade * (0.6 + 0.4 * a);
+      this.glowAt(x, y, r * 3.5, r * 3.5, hue, alpha * 0.6);
+      this.dot(x, y, r * 0.8, this.lineColor[hue], alpha);
+    }
   }
 
   private xAt(u: number): number {
@@ -503,7 +524,7 @@ export class UniversePainter {
     const { field } = this;
     const { zone } = field.layout;
     const rain = f.weights.particles;
-    const calm = 0.85 * (0.6 + 0.4 * f.presence) * (1 + 1.2 * f.bands.high);
+    const calm = 1.1 * (0.6 + 0.4 * f.presence) * (1 + 1.2 * f.bands.high);
     for (let m = 0; m < MOTES.length; m++) {
       const p = MOTES[m]!;
       const base = m < CALM_MOTES ? calm : 0;
@@ -520,8 +541,8 @@ export class UniversePainter {
         this.glowAt(x, y, r * 1.6, r * 1.6, p.hue, alpha * 0.35); // soft bokeh, no core
         continue;
       }
-      this.glowAt(x, y, r * 3.5, r * 3.5, p.hue, alpha * 0.6);
-      this.dot(x, y, r * 0.8, this.lineColor[p.hue], alpha);
+      this.glowAt(x, y, r * 3.5, r * 3.5, p.hue, alpha * 0.7);
+      this.dot(x, y, r, this.lineColor[p.hue], alpha);
     }
   }
 }
