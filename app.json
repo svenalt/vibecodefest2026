@@ -18,7 +18,7 @@
       "package": "app.soundcanvas.poc",
       "permissions": ["android.permission.RECORD_AUDIO"],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#02020A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
