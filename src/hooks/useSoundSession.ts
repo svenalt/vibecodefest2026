@@ -24,10 +24,12 @@ export function useSoundSession() {
     if (!listening) featuresRef.current = null;
   }, [listening]);
 
+  // Listen as soon as the app is opened or comes back to the foreground. start() asks for
+  // microphone permission only while it is undetermined (first launch) and does nothing if denied.
   useEffect(() => {
-    void session.refreshPermission();
+    void session.start();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void session.refreshPermission();
+      if (state === 'active') void session.start();
       else void session.stop(); // foreground-only: release the microphone when leaving the app
     });
     return () => {

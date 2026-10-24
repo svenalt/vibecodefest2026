@@ -128,7 +128,7 @@ export function SettingsScreen({ topInset }: { topInset: number }) {
         <Text style={[styles.about, { color: c.subtext }]}>
           SONORA is an experimental prototype. It is not reliable for safety, emergencies, navigation or
           medical decisions. Sound is analysed on this device while the microphone is on; no audio is
-          recorded, stored or uploaded. Listening stops when you leave the app.
+          recorded, stored or uploaded. Listening starts when you open the app and stops when you leave it.
         </Text>
       </Group>
     </ScrollView>

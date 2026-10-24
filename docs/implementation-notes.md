@@ -50,7 +50,7 @@ These are guesses from reading code and headers, not observed failures.
 
 ## Known limitations
 
-- Foreground only. The microphone stops when the app leaves the foreground, on audio interruptions and on route changes; the user has to press Start again.
+- Foreground only. The microphone stops when the app leaves the foreground, on audio interruptions and on route changes. Returning to the foreground starts listening again (and clears the in-memory timeline); after an interruption or route change the user has to press Start again.
 - Mono analysis only; no direction, distance or radar.
 - Only six demo categories plus silence are surfaced; everything else is shown as "No confident sound".
 - The icons are emoji. They render differently across OS versions.

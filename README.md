@@ -44,18 +44,18 @@ npx expo run:ios --device
 
 This generates the gitignored `ios/` project (`expo prebuild`), installs pods including `MediaPipeTasksAudio` 1.0.0, builds a development build and installs it on the connected iPhone. The first build needs you to choose a signing team in Xcode (open `ios/SoundCanvas.xcworkspace` once). The bundle identifier `app.soundcanvas.poc` in `app.json` may need changing to something unique for your Apple ID.
 
-On the phone: tap Start listening, allow the microphone, then play speech, music, applause, a barking dog, rain or a bell. The "Show diagnostics" button displays the microphone format, the model class count and the measured latency. Record those numbers in `docs/implementation-notes.md`.
+On the phone: allow the microphone when the app asks on first launch (listening starts by itself), then play speech, music, applause, a barking dog, rain or a bell. The "Show diagnostics" button displays the microphone format, the model class count and the measured latency. Record those numbers in `docs/implementation-notes.md`.
 
 If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install first; the Swift module cannot build without it.
 
 ## Android (planned)
 
-The same app and shared code target Android. The Kotlin YAMNet adapter is not written yet; the design, dependency choice and permission handling are in `docs/android-adapter.md`. Until then the Android build shows a clear "adapter not implemented" message when you press Start. `RECORD_AUDIO` is already declared in `app.json`.
+The same app and shared code target Android. The Kotlin YAMNet adapter is not written yet; the design, dependency choice and permission handling are in `docs/android-adapter.md`. Until then the Android build shows a clear "adapter not implemented" message when it tries to start listening. `RECORD_AUDIO` is already declared in `app.json`.
 
 ## Permissions and privacy
 
-- iOS asks for the microphone the first time you press Start (`NSMicrophoneUsageDescription` in `app.json`). If you deny it, the app explains why and offers a shortcut to Settings.
-- Capture is foreground only and stops when you press Stop, leave the app, unmount the screen, or the audio is interrupted. While it is on, the screen says so in text.
+- iOS asks for the microphone the first time the app is opened (`NSMicrophoneUsageDescription` in `app.json`). Once allowed, listening starts by itself whenever the app is opened or comes back to the foreground. If you deny it, the app does not ask again; it explains why and offers a shortcut to Settings.
+- Capture is foreground only and stops when you press Stop, leave the app, unmount the screen, or the audio is interrupted. Returning to the app starts a new session. While it is on, the screen says so in text.
 - Audio stays in memory long enough to be analysed. Nothing is written to disk or sent anywhere. The history list is in memory and clears when you start a new session.
 - Logs and diagnostics contain technical state and model labels only.
 
