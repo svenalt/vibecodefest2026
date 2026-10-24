@@ -10,7 +10,7 @@
 
 Design SoundCanvas from day one as a **cross-platform iOS + Android** application: an accessible, privacy-conscious experience translating ambient sounds into clear labels and live, artistic visuals. Implement and validate the first working vertical slice on **iOS (physical iPhone 13 Pro Max)**, without coupling the product architecture to iOS.
 
-**Agreed platform strategy:** iOS uses Apple's built-in **SoundAnalysis** classifier; Android uses **Google YAMNet on device** (via a suitable TFLite/LiteRT or MediaPipe integration). Both feed the same platform-neutral application, sound-category mapping, event history, and visualization. The Android backend and physical-device verification are follow-up implementation work, but its contract and integration boundaries are mandatory in this REQ.
+**Agreed platform strategy:** Use **Google YAMNet (on-device TFLite/LiteRT) as the common classifier on both iOS and Android**. Separate native Swift and Kotlin capture/inference adapters feed one shared TypeScript contract, label taxonomy, event history, and visualization. Use the same pinned model/label asset on both platforms where compatible. Implement and verify the iOS vertical slice first; native Android implementation and physical-device verification remain follow-up work, but Android integration boundaries are mandatory in this REQ.
 
 This is an experimental proof of concept, **not** yet a reliable assistive warning system.
 
@@ -32,7 +32,7 @@ Potential future audiences include people who are deaf or hard of hearing, as we
 - Initialize a modern **React Native + Expo + TypeScript** application in this repository, using one compatible, documented Expo SDK release and its lockfile.
 - Keep the project source-controlled and independent of Swarmz hosting. The current repository contains a README only; do not assume a Swarmz web application can be used unchanged as a native app.
 - Configure the Expo application as a **single React Native project targeting iOS and Android**. Keep shared UI, domain logic, visualization, classification normalization, and tests in platform-neutral TypeScript.
-- Prepare an iOS development build with custom native modules as needed. Define an Android integration path now, but **Android native classifier implementation and Android device testing are not required for REQ-001**.
+- Prepare an iOS development build with native audio capture and bundled YAMNet inference. Define the Android adapter/integration path now, but **Android native classifier implementation and Android device testing are not required for REQ-001**. Expo Go cannot validate custom native audio/model modules.
 - Document reproducible setup, iOS deployment to an iPhone, the planned Android build path, and platform-specific permissions/build prerequisites in the README.
 - Do not introduce cloud infrastructure, accounts, analytics, or a database.
 
@@ -47,14 +47,15 @@ Potential future audiences include people who are deaf or hard of hearing, as we
 
 ### REQ-001.3 — Cross-platform pretrained, on-device sound classification
 
-- **iOS adapter (implemented first):** Apple's built-in **SoundAnalysis** classifier through a native Expo module (Swift), preferably SNClassifySoundRequest plus SNAudioStreamAnalyzer. No custom training or network inference.
-- **Android adapter (specified now, implemented later):** **Google YAMNet**, using an appropriate on-device TFLite/LiteRT or MediaPipe Audio Classifier integration. Plan for the model's mono **16 kHz** waveform input, buffering/resampling as needed, bundled model/labels, and Android microphone lifecycle. No network inference. Validate model asset format, platform compatibility, and redistribution/license requirements before integration.
-- Define a **platform-agnostic TypeScript interface** for start/stop, capture state, timestamped model predictions, acoustic features, and errors. Keep native Swift and future Kotlin implementation behind platform-specific adapters. The UI must not import iOS-specific inference code.
-- Normalize both models' distinct taxonomies into one shared domain event, e.g. `{ timestampMs, category, rawLabel, score, model, platform }`. Do **not** assume Apple's and YAMNet's label sets, scores, or recognition quality are identical.
-- Use a small, documented **per-model label mapping** into approximately **3–5 shared demo categories** (candidates: speech, music, dog bark, applause, rain, bell), selected from genuinely supported model labels.
-- Treat other/unknown/no confident detection as normal outcomes. Do not display a forced label for silence or unrelated sounds.
-- Include configurable temporal smoothing/debouncing and event cooldown so that rapidly changing predictions do not produce an unusable stream of alerts.
-- Never describe raw model scores as calibrated probabilities.
+- **Common model:** Bundle Google's pretrained **YAMNet TFLite audio classifier** on both platforms; prefer the fixed-window `YAMNet/classification` mobile variant. No cloud inference or custom training. Pin the source, version, checksum, class-label asset, and redistribution/license verification; use an identical model artifact on both platforms wherever supported.
+- **Audio and model I/O:** Analyze **16 kHz mono, normalized float32** audio. For the fixed-window model use **15,600 samples / 0.975 s** per inference and verify the **521 output scores** against the bundled label order. Native capture may use a different hardware sample rate and must be resampled as needed. Maintain an overlapping ring buffer; aim for a new result about every **0.48–0.5 s** after the first window, without promising a hard latency guarantee.
+- **iOS adapter (implemented first):** Use **MediaPipe Tasks Audio for iOS (Swift)** with YAMNet, or a documented compatible LiteRT/TFLite interpreter if required. Capture via a native microphone pipeline (e.g. AVAudioEngine); handle buffering, resampling, off-main-thread inference, errors, and cleanup behind a custom Expo native module.
+- **Android adapter (specified now, implemented later):** Use **the same YAMNet model** with **MediaPipe Tasks Audio / LiteRT (Kotlin)**, native AudioRecord, equivalent buffering, microphone permission/lifecycle, and cleanup. No network fallback.
+- Define a **platform-agnostic TypeScript interface** for start/stop, capture state, timestamped predictions, acoustic features, and errors. Neither shared UI nor category logic imports native Swift/Kotlin-specific code.
+- Normalize predictions into `{ timestampMs, category, rawLabel, score, model: 'yamnet', platform }` using **one versioned YAMNet label-to-category mapping**. Verify tensor shape and class order on both platforms. Matching model weights do not guarantee matching real-world inference latency or recognition quality.
+- Initially expose approximately **3–5 tested demo categories** (e.g. speech, music, dog bark, applause, rain, bell), drawn from supported YAMNet classes. Keep mapping extensible toward **10–15 relevant categories** after testing, rather than presenting all 521 raw classes as reliable.
+- Silence, other/unknown, and no confident detection must remain valid outputs. Never force a category for unrelated sounds.
+- Add configurable thresholds, temporal smoothing/debouncing, and event cooldown to prevent noisy alerts. **Raw model scores are not calibrated probabilities.**
 
 ### REQ-001.4 — Accessible sound-awareness UI
 
@@ -71,7 +72,7 @@ Potential future audiences include people who are deaf or hard of hearing, as we
 ### REQ-001.5 — Live artistic visualization
 
 - Create one restrained but attractive sound-reactive visualization using React Native-compatible rendering (e.g., Skia); do not use a static pre-rendered animation as the entire experience.
-- At minimum, audio energy controls the intensity/size of shapes and broad sound classes change the motif or color palette.
+- At minimum, audio energy controls the intensity/size of shapes and broad sound classes change the motif or color palette. Compute lightweight RMS/frequency features independently of YAMNet's ~0.5-second event cadence; throttle feature transfers to JS to keep the animation responsive.
 - A simple first mapping is sufficient:
   - speech → flowing waves;
   - impact/applause → expanding pulses;
@@ -94,19 +95,19 @@ Potential future audiences include people who are deaf or hard of hearing, as we
 **One product, two platform adapters, one shared behavior.** Keep the capture and model APIs native where justified; everything above that boundary is shared React Native/TypeScript.
 
 ```text
-iOS:     Microphone → AVAudioEngine → Apple SoundAnalysis adapter ─┐
-                                                                    ├→ normalized event + audio-feature contracts
-Android: Microphone → AudioRecord → 16 kHz mono → YAMNet adapter ──┘                         ↓
+iOS:     Microphone → AVAudioEngine → 16 kHz mono → YAMNet (Swift) ─┐
+                                                                     ├→ normalized event + audio-feature contracts
+Android: Microphone → AudioRecord  → 16 kHz mono → YAMNet (Kotlin) ─┘                         ↓
                                                          shared mapping, smoothing, cooldown
                                                                           ↓
                                                         React Native accessible UI + sound art
 ```
 
-- Define and test the **SoundInput / SoundClassifier adapter contract and normalized event schema before wiring iOS UI logic**. Include an Android mock/fake adapter in tests to demonstrate no iOS-only assumptions leak into the common UI.
+- Define and test the **SoundInput / SoundClassifier adapter contract and normalized event schema before wiring iOS UI logic**. Include an Android mock/fake adapter in tests to demonstrate no iOS-only assumptions leak into common UI and both platforms use the same YAMNet labels.
 - Each platform must use **one coordinated capture pipeline** to supply its sound classifier and lightweight acoustic features (e.g. RMS, frequency bands), without a competing second microphone session.
 - Keep buffering, resampling, model initialization, and native resource release in the platform adapters; throttle feature/event delivery to JS so the visualization remains responsive.
-- Ensure shared category-to-visual mappings, unknown/silence behavior, cooldown rules, accessibility and privacy are identical across platforms; preserve raw model labels for diagnostics.
-- For **REQ-001**, implement the iOS adapter end-to-end and record the concrete Android YAMNet integration design, including audio input format, dependency/model asset choice, Expo native-module boundary, and permission handling. Android execution is a later milestone, **not** a change of architecture.
+- Ensure shared YAMNet label mapping, category-to-visual mappings, unknown/silence behavior, cooldown rules, accessibility and privacy are identical across platforms; preserve raw model labels for diagnostics.
+- For **REQ-001**, implement the **iOS YAMNet adapter end-to-end** and document the corresponding Android YAMNet design, including identical model/label assets, audio input format, dependency choice, Expo native-module boundary, and permission handling. Android execution is a later milestone, **not** a change of architecture.
 
 **Direction of arrival, 360° radar, distance estimation, and multi-microphone localization are out of scope on both platforms.**
 
@@ -126,24 +127,24 @@ Use follow-up REQs for future functionality and for Android YAMNet implementatio
 
 - [ ] Fresh checkout installs dependencies and the documented iOS build process succeeds.
 - [ ] Expo project and shared TypeScript architecture explicitly target **both iOS and Android**; platform-specific imports and permissions are isolated.
-- [ ] A documented Android YAMNet adapter design specifies model format/assets, expected mono 16 kHz input handling, native bridge, microphone permission and lifecycle, and offline inference.
+- [ ] A shared, pinned YAMNet model and label map are selected with source, hash and license verification; the **15,600-sample mono 16 kHz input and 521-score output** are documented/validated, and the Android adapter design covers permissions, buffering, resampling, native bridge, and offline inference.
 - [ ] A development build launches on an actual iPhone 13 Pro Max.
 - [ ] Permission granted/denied paths are both usable and do not crash.
 - [ ] Start activates a live microphone stream; Stop releases it. The UI always reflects the actual state.
-- [ ] At least three distinct supported sound categories can be demonstrated using live examples; uncertain/unknown audio is displayed honestly.
-- [ ] Recognition results include model labels, scores, and timestamps; event smoothing/cooldown avoids rapid UI flicker.
+- [ ] At least three distinct YAMNet-supported sound categories can be demonstrated using live iPhone examples; uncertain/unknown audio is displayed honestly.
+- [ ] Live iPhone classification demonstrably runs **bundled YAMNet**, not a mock; results include model labels, scores, and timestamps; event smoothing/cooldown avoids rapid UI flicker.
 - [ ] The visualization visibly responds to live sound energy and at least two recognized categories, and can be reduced/disabled for accessibility.
 - [ ] Sound labels/icons remain legible independently of the visualization.
 - [ ] The demo can run with network connectivity disabled and without persisting or uploading raw audio.
-- [ ] Basic automated tests cover **per-model (Apple/YAMNet) label mapping**, normalized event schema, event smoothing, cooldown, and unknown-state handling using mock platform adapters.
-- [ ] Type checking and relevant tests pass; implementation notes record any unresolved iPhone-specific limitations.
+- [ ] Basic automated tests cover **shared YAMNet label mapping and output/label ordering**, normalized event schema, event smoothing, cooldown, and unknown-state handling using mock platform adapters.
+- [ ] Type checking and relevant tests pass; implementation notes record iOS YAMNet runtime details, measured first-result/update latency, and any unresolved iPhone-specific limitations.
 
 ## 7. Implementation sequence
 
 1. Bootstrap one **iOS/Android Expo app** and establish a successful iPhone development build.
-2. Implement shared audio/classifier interfaces, event schema, per-model taxonomy mapping, and mock adapters; document the Android YAMNet integration design.
+2. Pin the shared YAMNet model/labels and implement audio/classifier interfaces, event schema, one taxonomy mapping, and mock adapters; document the Android YAMNet integration design.
 3. Add iOS permission/capture lifecycle, diagnostics, and a minimal live-energy display behind the common interface.
-4. Integrate native Apple SoundAnalysis classification with a small set of broad demo classes.
+4. Integrate **YAMNet TFLite on iOS** through MediaPipe Tasks Audio (or a compatible LiteRT interpreter), test expected tensor I/O, and measure latency on the physical iPhone.
 5. Build shared accessible event UI, session timeline, and generative visualization; test cross-platform common logic with iOS and Android mock events.
 6. Verify the physical iPhone demo and document follow-up work for the native Android YAMNet adapter and device testing.
 
@@ -153,9 +154,9 @@ Use follow-up REQs for future functionality and for Android YAMNet implementatio
 
 - Expo + Claude Code: https://docs.expo.dev/agents/claude/
 - Expo custom native modules: https://docs.expo.dev/workflow/customizing/
-- Apple SoundAnalysis: https://developer.apple.com/documentation/soundanalysis/
-- Apple live classification sample: https://developer.apple.com/documentation/soundanalysis/classifying-live-audio-input-with-a-built-in-sound-classifier
 - Expo Audio: https://docs.expo.dev/versions/latest/sdk/audio/
-- Google YAMNet model and taxonomy: https://www.tensorflow.org/hub/tutorials/yamnet
-- Google YAMNet on mobile (TFLite context): https://blog.tensorflow.org/2021/03/transfer-learning-for-audio-data-with-yamnet.html
-- MediaPipe Audio Classifier (Android integration candidate): https://ai.google.dev/edge/mediapipe/solutions/audio/audio_classifier
+- YAMNet model, labels, preprocessing: https://github.com/tensorflow/models/tree/master/research/audioset/yamnet
+- Google YAMNet TFLite classification artifact: https://www.kaggle.com/models/google/yamnet/tfLite/classification-tflite/1
+- Android audio classification/YAMNet example: https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/g3doc/android/tutorials/audio_classification.md
+- MediaPipe Audio Classifier iOS: https://ai.google.dev/edge/mediapipe/solutions/audio/audio_classifier/ios
+- MediaPipe Audio Classifier Android: https://ai.google.dev/edge/mediapipe/solutions/audio/audio_classifier/android
