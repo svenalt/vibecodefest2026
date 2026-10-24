@@ -30,7 +30,7 @@ interface Props {
 }
 
 /**
- * Live tab. Immersive mode reuses this same tree: the chrome around the artwork is removed and
+ * Live screen. Immersive mode reuses this same tree: the chrome around the artwork is removed and
  * the artwork's container grows to the whole screen, so the one canvas, its loop and its state
  * stay mounted throughout.
  */

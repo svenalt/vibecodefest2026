@@ -114,3 +114,31 @@ Last updated: 2026-10-24. Typecheck and unit tests pass; **nothing in this secti
 - VoiceOver/TalkBack order in the overlay, large Dynamic Type layouts and real contrast over the moving artwork.
 - Skia icon rendering cost: each icon is a small `Canvas` (about 8 on Live).
 
+
+# REQ-007 Live focus and Universe V3 notes
+
+Last updated: 2026-10-24. Typecheck and unit tests pass. **Nothing in this section has been run on an iPhone or Android device.** The artwork was rendered headlessly with CanvasKit (the WASM build of the same Skia API) at card (396×389), portrait full-screen (428×926) and wide (834×470) sizes in both themes, and compared against `docs/design/sonora-universe-v3-concept.png`. A few of those captures are in `docs/design/v3-headless/`; they are **not** device screenshots.
+
+## Navigation (P0-A)
+
+Already delivered by commit `4285d03` and verified against REQ-007: Live is the only main view, there is no tab bar, Sound Walk or Gallery, the gear (top right, "Open settings") opens Settings with "Back to Live", Android back leaves immersion, then Settings, then the app, and `SessionProvider` sits above both views so the session, timeline and the one canvas survive switching. The only change here is the Dark artwork backdrop token (`vizBg`), now a near-black navy void instead of the purple gradient.
+
+## Universe V3 (P0-B)
+
+- `src/viz/ribbonField.ts` (new, pure, unit-tested): five translucent "sheets" (far teal, warm middle, warm-to-cool diagonal, cool foreground, low ember glow). Each is a centre line, a half-thickness and a slow twist; its hairline threads sit at `centre + half * s * cos(twist)`, so where a sheet turns edge-on the threads converge into a bright fold. Layout is recomputed from the real canvas size: wide frames keep roughly the upper third dark; portrait recomposes a taller landscape a little below centre with fewer, unsqueezed waves. Fixed seeds and phases; motion comes only from `flow` (slow at rest) and sound.
+- Sound shapes the geometry, not only brightness: `level` and mid-band energy raise and bend the crests, low-band energy thickens the lower sheets, and every onset (`bursts`) lifts a crest that then splits into two deformations travelling along the ribbons and releasing within `BURST_LIFE_S` (back sheets answer a beat later). High-band energy brightens threads, glints and motes. In silence consecutive frames move by under 1.5 px.
+- `src/viz/universePainter.ts` (rewritten): cached backdrop and vignette, haze only around the ribbon zone, then per sheet a translucent body, a soft wide centre glow, hairline threads with a horizontal colour gradient, and a luminous lit edge (stacked strokes, no blur pass). Far sheets are softer (depth of field). About 24 sparse motes drift above the middle crests. Dark uses Screen blending on the void; Light is a separately tuned pearl/lilac palette with deeper turquoise, honey gold and lavender edges.
+- Category accents (real detections only, cross-faded by the existing motif weights): speech weaves lavender strands through the warm and foreground sheets; rain adds mint/gold motes; bell/dog bark/applause send a gold edge glow and glints along the onset wave; music adds band-led modulation to the sheets; unknown/quiet keeps the neutral composition. Every onset glows briefly along the front edge in the motif's colour.
+- `vizModel.ts` is unchanged. `SoundCanvasView` is unchanged: one canvas, one loop, one `SkPicture` per frame, Reduced draws one still frame, Off draws nothing.
+
+## Cost and limits
+
+- Headless recording takes about 3-4 ms per frame in WASM (V2: about 1.8 ms), roughly 60 path draws and 50 small sprites, with about 2,000 path-builder calls per frame. On device these are JSI calls; their cost, GPU time for the Screen-blended strokes and thermal behaviour over 5-10 minutes are **not measured**.
+- The soft glows are stacked strokes, not real blur, so at high energy faint steps can show at the edge of the glow. A blur mask filter would look closer to the concept but costs more per frame; try it only after profiling on device.
+- The concept's dense particle spray and photographic depth of field are only suggested (sparse motes, softer far sheet).
+
+## Not verified on device
+
+- iPhone 13 Pro Max screenshots of Dark Live, Light Live and Dark immersive, and a recording of the motion during real speech, taps and music: **not taken**.
+- Whether a quiet voice in a quiet room produces visible deformation at real microphone levels (tuned on synthetic inputs only).
+- Frame rate, memory (one `SkPicture` per frame left to GC) and heat over a 5-10 minute session.

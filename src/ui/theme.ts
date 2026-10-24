@@ -36,7 +36,7 @@ export interface Palette {
 const light: Palette = {
   mode: 'light',
   art: '#7066B5',
-  vizBg: ['#F5F7FC', '#DCDFF5'],
+  vizBg: ['#F7F6FC', '#E2DDF3'],
   bg: '#F5F7FC',
   card: '#FFFFFF',
   text: '#25344F',
@@ -62,7 +62,7 @@ const light: Palette = {
 const dark: Palette = {
   mode: 'dark',
   art: '#C5ADFF',
-  vizBg: ['#0B1120', '#1B1340'],
+  vizBg: ['#020309', '#070B18'],
   bg: '#0B1120',
   card: '#172438',
   text: '#F5F8F8',
