@@ -27,14 +27,16 @@ interface Props {
 
 const FRAME_MS = 1000 / 30;
 
-const COLORS = {
-  low: '#7C5CFF',
-  mid: '#2DD4BF',
-  high: '#FBBF24',
-  rain: '#8FD3FF',
-  pulse: '#FF6B9A',
-  wave: '#5EEAD4',
+type VizColors = {
+  lav: string;
+  mint: string;
+  gold: string;
+  star: string;
 };
+
+// Universe Dark: luminous mint/lavender/gold on navy. Universe Light: turquoise/lilac/soft gold on pearl.
+const DARK_COLORS: VizColors = { lav: '#C5ADFF', mint: '#73EDD3', gold: '#FBD97A', star: '#F5F8F8' };
+const LIGHT_COLORS: VizColors = { lav: '#8F7FD8', mint: '#2FA4B5', gold: '#D9A441', star: '#52627B' };
 
 // Fixed pseudo-random seeds so rain looks the same on every launch and between frames.
 const PARTICLES = (() => {
@@ -56,6 +58,7 @@ const PARTICLES = (() => {
  */
 export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
   const c = usePalette();
+  const colors = c.mode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const [width, setWidth] = useState(0);
   const [frame, setFrame] = useState<VizFrame>(() => VizState.staticFrame(motif));
   const motifRef = useRef(motif);
@@ -99,41 +102,51 @@ export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
           <Rect x={0} y={0} width={width} height={height}>
             <LinearGradient start={vec(0, 0)} end={vec(width, height)} colors={c.vizBg} />
           </Rect>
-          <Scene frame={frame} w={width} h={height} />
+          <Scene frame={frame} w={width} h={height} colors={colors} />
         </Canvas>
       )}
     </View>
   );
 }
 
-function Scene({ frame, w, h }: { frame: VizFrame; w: number; h: number }) {
+type SceneProps = { frame: VizFrame; w: number; h: number; colors: VizColors };
+
+function Scene({ frame, w, h, colors }: SceneProps) {
   const { weights } = frame;
   return (
     <>
-      {weights.ambient > 0.02 && <Ambient frame={frame} w={w} h={h} />}
-      {weights.waves > 0.02 && <Waves frame={frame} w={w} h={h} />}
-      {weights.pulses > 0.02 && <Pulses frame={frame} w={w} h={h} />}
-      {weights.particles > 0.02 && <Particles frame={frame} w={w} h={h} />}
-      {weights.forms > 0.02 && <Forms frame={frame} w={w} h={h} />}
+      {weights.ambient > 0.02 && <Ambient frame={frame} w={w} h={h} colors={colors} />}
+      {weights.waves > 0.02 && <Waves frame={frame} w={w} h={h} colors={colors} />}
+      {weights.pulses > 0.02 && <Pulses frame={frame} w={w} h={h} colors={colors} />}
+      {weights.particles > 0.02 && <Particles frame={frame} w={w} h={h} colors={colors} />}
+      {weights.forms > 0.02 && <Forms frame={frame} w={w} h={h} colors={colors} />}
     </>
   );
 }
 
-type SceneProps = { frame: VizFrame; w: number; h: number };
-
-function Ambient({ frame, w, h }: SceneProps) {
+function Ambient({ frame, w, h, colors }: SceneProps) {
   const breathe = 1 + 0.08 * Math.sin(frame.time * 0.6);
   const r = h * (0.22 + 0.2 * frame.level) * breathe;
   return (
     <Group opacity={frame.weights.ambient * 0.7}>
-      <Circle cx={w / 2} cy={h / 2} r={r * 1.6} color={COLORS.low} opacity={0.18} />
-      <Circle cx={w / 2} cy={h / 2} r={r} color={COLORS.mid} opacity={0.35} />
-      <Circle cx={w / 2} cy={h / 2} r={r * 0.5} color={COLORS.high} opacity={0.4} />
+      {PARTICLES.slice(0, 40).map((p, i) => (
+        <Circle
+          key={i}
+          cx={p.x * w}
+          cy={p.y * h}
+          r={p.size * 0.6}
+          color={colors.star}
+          opacity={0.25 + 0.35 * (0.5 + 0.5 * Math.sin(frame.time * 0.8 * p.speed + p.wobble))}
+        />
+      ))}
+      <Circle cx={w / 2} cy={h / 2} r={r * 1.6} color={colors.lav} opacity={0.18} />
+      <Circle cx={w / 2} cy={h / 2} r={r} color={colors.mint} opacity={0.35} />
+      <Circle cx={w / 2} cy={h / 2} r={r * 0.5} color={colors.gold} opacity={0.4} />
     </Group>
   );
 }
 
-function Waves({ frame, w, h }: SceneProps) {
+function Waves({ frame, w, h, colors }: SceneProps) {
   const paths = [0, 1, 2].map((i) => {
     const builder = Skia.PathBuilder.Make();
     const amp = h * 0.2 * (0.12 + frame.level) * (1 - i * 0.2);
@@ -155,7 +168,7 @@ function Waves({ frame, w, h }: SceneProps) {
           path={path}
           style="stroke"
           strokeWidth={3 + frame.level * 4 - i}
-          color={[COLORS.wave, COLORS.mid, COLORS.low][i]!}
+          color={[colors.lav, colors.mint, colors.gold][i]!}
           opacity={0.9 - i * 0.25}
         />
       ))}
@@ -163,7 +176,7 @@ function Waves({ frame, w, h }: SceneProps) {
   );
 }
 
-function Pulses({ frame, w, h }: SceneProps) {
+function Pulses({ frame, w, h, colors }: SceneProps) {
   const maxR = Math.min(w, h) * 0.55 + frame.level * 30;
   const speed = 0.35 + frame.level * 0.9;
   return (
@@ -178,7 +191,7 @@ function Pulses({ frame, w, h }: SceneProps) {
             r={8 + p * maxR}
             style="stroke"
             strokeWidth={2 + frame.level * 7 * (1 - p)}
-            color={i % 2 === 0 ? COLORS.pulse : COLORS.high}
+            color={i % 2 === 0 ? colors.mint : colors.gold}
             opacity={(1 - p) * 0.9}
           />
         );
@@ -187,7 +200,7 @@ function Pulses({ frame, w, h }: SceneProps) {
   );
 }
 
-function Particles({ frame, w, h }: SceneProps) {
+function Particles({ frame, w, h, colors }: SceneProps) {
   const fall = frame.time * (0.12 + frame.level * 0.35);
   return (
     <Group opacity={frame.weights.particles * (0.45 + 0.45 * frame.level)}>
@@ -197,21 +210,21 @@ function Particles({ frame, w, h }: SceneProps) {
           cx={p.x * w + Math.sin(frame.time * 0.8 + p.wobble) * 4}
           cy={((p.y + fall * p.speed) % 1) * h}
           r={p.size * (1 + frame.level * 0.6)}
-          color={COLORS.rain}
+          color={i % 3 === 0 ? colors.gold : colors.mint}
         />
       ))}
     </Group>
   );
 }
 
-function Forms({ frame, w, h }: SceneProps) {
+function Forms({ frame, w, h, colors }: SceneProps) {
   const beat = 0.5 + 0.5 * Math.sin(frame.time * 4.2);
   const { low, mid, high } = frame.bands;
   const base = Math.min(w, h) * 0.18;
   const spots = [
-    { x: 0.25, y: 0.55, e: low, color: COLORS.low, phase: 0 },
-    { x: 0.5, y: 0.4, e: mid, color: COLORS.mid, phase: 1.3 },
-    { x: 0.75, y: 0.58, e: high, color: COLORS.high, phase: 2.6 },
+    { x: 0.25, y: 0.55, e: low, color: colors.lav, phase: 0 },
+    { x: 0.5, y: 0.4, e: mid, color: colors.mint, phase: 1.3 },
+    { x: 0.75, y: 0.58, e: high, color: colors.gold, phase: 2.6 },
   ];
   return (
     <Group opacity={frame.weights.forms}>

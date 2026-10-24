@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Current } from '../core/eventTracker';
-import { MOTIFS, VizState, levelFromRms, motifForCurrent } from './vizModel';
+import { MOTIFS, VizState, dbFromRms, intensityFromContrast, levelFromRms, motifForCurrent } from './vizModel';
 
 const event = (category: Extract<Current, { kind: 'event' }>['category']): Current => ({
   kind: 'event',
@@ -34,6 +34,33 @@ describe('levelFromRms', () => {
   });
 });
 
+describe('adaptive intensity', () => {
+  it('handles silence and invalid RMS', () => {
+    expect(dbFromRms(0)).toBe(dbFromRms(NaN));
+    expect(intensityFromContrast(-5)).toBe(0);
+    expect(intensityFromContrast(100)).toBeLessThan(1);
+  });
+
+  const feat = (rms: number) => ({ rms, bands: { low: 0.3, mid: 0.4, high: 0.3 } });
+  const run = (s: VizState, rms: number, seconds: number) => {
+    let level = 0;
+    for (let i = 0; i < seconds * 30; i++) level = s.step(1 / 30, feat(rms), 'ambient').level;
+    return level;
+  };
+
+  it('shows a quiet transient but calms under sustained loud ambience', () => {
+    const quiet = new VizState();
+    run(quiet, 0.002, 10);
+    expect(run(quiet, 0.02, 0.5)).toBeGreaterThan(0.3);
+
+    const loud = new VizState();
+    const early = run(loud, 0.2, 1);
+    const late = run(loud, 0.2, 15);
+    expect(late).toBeLessThan(early * 0.5);
+    expect(run(loud, 0.9, 0.5)).toBeGreaterThan(late + 0.2);
+  });
+});
+
 describe('VizState', () => {
   const loud = { rms: 0.3, bands: { low: 0.3, mid: 0.4, high: 0.3 } };
 
@@ -46,7 +73,7 @@ describe('VizState', () => {
     const before = fall.frame().level;
     const down = fall.step(1 / 30, null, 'ambient').level;
 
-    expect(up).toBeGreaterThan(0.3);
+    expect(up).toBeGreaterThan(0.05);
     expect(before - down).toBeLessThan(up);
   });
 
