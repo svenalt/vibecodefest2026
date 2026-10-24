@@ -47,6 +47,8 @@ export class SoundSession {
   private lastArrival: number | null = null;
   private intervalSum = 0;
   private snapshot: SessionSnapshot;
+  /** True from start() until it settles, so a permission prompt or model load cannot be re-entered. */
+  private starting = false;
 
   constructor(input: SoundInput, tracker = new EventTracker(), now: () => number = Date.now) {
     this.input = input;
@@ -96,7 +98,22 @@ export class SoundSession {
 
   /** Starts a listening session. Capture never begins unless permission is granted. */
   async start(): Promise<void> {
+    if (this.starting) return;
     if (this.snapshot.capture.status === 'listening' || this.snapshot.capture.status === 'starting') return;
+    this.starting = true;
+    try {
+      await this.startUnguarded();
+    } finally {
+      this.starting = false;
+    }
+  }
+
+  /** True while start() is waiting on permission or capture start-up. */
+  isStarting(): boolean {
+    return this.starting;
+  }
+
+  private async startUnguarded(): Promise<void> {
     this.update({ error: null });
 
     let permission = await this.input.getPermission();

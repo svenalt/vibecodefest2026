@@ -19,7 +19,7 @@ export function CurrentSound({ listening, current, lastPrediction }: Props) {
 
   let icon = '🎙️';
   let title = 'Not listening';
-  let detail = 'Press Start listening to begin.';
+  let detail = 'Start listening in the Settings tab to begin.';
   if (listening) {
     if (current.kind === 'event') {
       icon = CATEGORY_ICON[current.category];

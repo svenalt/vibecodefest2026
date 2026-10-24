@@ -73,6 +73,12 @@ describe('SoundSession lifecycle', () => {
     expect(input.startCalls).toBe(1);
   });
 
+  it('ignores overlapping start calls while permission is pending', async () => {
+    const { input, session } = setup();
+    await Promise.all([session.start(), session.start(), session.start()]);
+    expect(input.startCalls).toBe(1);
+  });
+
   it('clears the timeline when a new session starts', async () => {
     const { input, session } = setup();
     await session.start();

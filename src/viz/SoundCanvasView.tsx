@@ -23,6 +23,8 @@ interface Props {
   height: number;
   /** Latest features, or null when not listening. Read every frame; never causes a render. */
   getFeatures: () => AudioFeatures | null;
+  /** True while the view is not visible; stops the animation loop without unmounting. */
+  paused?: boolean;
 }
 
 const FRAME_MS = 1000 / 30;
@@ -56,7 +58,7 @@ const PARTICLES = (() => {
  * and broad sound class, never a map of where a sound comes from, and it carries no
  * information that the text UI does not also state.
  */
-export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
+export function SoundCanvasView({ motif, mode, height, getFeatures, paused = false }: Props) {
   const c = usePalette();
   const colors = c.mode === 'dark' ? DARK_COLORS : LIGHT_COLORS;
   const [width, setWidth] = useState(0);
@@ -71,7 +73,7 @@ export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
 
   // Animated: one long-lived state so motif changes cross-fade instead of restarting.
   useEffect(() => {
-    if (mode !== 'animated') return;
+    if (mode !== 'animated' || paused) return;
     const state = new VizState();
     let raf = 0;
     let last = Date.now();
@@ -85,7 +87,7 @@ export function SoundCanvasView({ motif, mode, height, getFeatures }: Props) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [mode, getFeatures]);
+  }, [mode, paused, getFeatures]);
 
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
 
