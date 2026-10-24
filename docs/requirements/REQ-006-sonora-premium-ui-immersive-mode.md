@@ -1,109 +1,107 @@
-# REQ-006 — SONORA Premium UI Polish & Immersive Fullscreen Mode
+# REQ-006 — SONORA Focused Live UI & Immersive Fullscreen
 
-**Status:** Ready for implementation after REQ-005 iPhone smoke test  
+**Status:** Ready for implementation — REQ-005 accepted on physical iPhone by Sven  
 **Date:** 2026-10-24  
-**Priority:** P0 — design quality and immersive experience  
-**Recommended Claude Code:** **Sonnet 5.5, High effort** (Medium for purely cosmetic follow-up changes)  
-**Timebox:** 50–65 minutes for P0, excluding physical iPhone build and visual tuning  
+**Priority:** P0 — streamlined live experience and premium UI  
+**Recommended Claude Code:** **Sonnet 5.5, High effort** (Medium for cosmetic follow-ups)  
+**Timebox:** 45–60 minutes for P0, excluding physical iPhone build and visual tuning  
 **Target:** Shared React Native/TypeScript UI for iOS and Android; iPhone 13 Pro Max first  
-**Depends on:** REQ-004 navigation/session ownership and REQ-005 Universe V2 renderer on main (`f10336f`)  
+**Depends on:** REQ-004 app-level single SoundSession and REQ-005 Universe V2 on main (`f10336f`)  
 
-## Why
+## Product decision — focus SONORA on Live
 
-SONORA must feel like an elegant, art-first app **and** an honest, accessible live sound recognition tool. The REQ-005 artwork is substantially improved, but the surrounding UI remains visibly utilitarian:
+**This decision supersedes the four-tab navigation in REQ-004 for the present prototype.** Sven has accepted REQ-005 on iPhone. The immediate product now consists of only:
 
-- `src/ui/TabBar.tsx` mixes emoji, Unicode glyphs and text instead of one coherent icon language.
-- `src/ui/CurrentSound.tsx` places `Model label` and `Raw score` directly in the primary sound card. These belong in developer diagnostics.
-- `src/ui/Timeline.tsx` exposes score values and has dense rows.
-- Live, Settings and Coming Soon screens have basic styles without a unified premium hierarchy.
-- The user explicitly requested a **fullscreen artwork option** so the Universe can become an immersive, living digital painting.
+1. **Live** — genuine environment-sound recognition + the Universe artwork; it is the root screen.
+2. **Settings** — a secondary screen reached from a polished, clearly recognizable settings button in the Live header.
+3. **Immersive Mode** — a fullscreen presentation of the same live artwork, entered from Live and exited back to Live.
 
-Do not undermine the functional accessibility purpose: microphone truth, sound labels, errors, permission state and legibility remain more important than decorative effects.
+**Remove the bottom navigation bar entirely. Do not show Sound Walk or Gallery anywhere in the current UI.** Those are deferred concepts, not active destinations or "Coming soon" screens. Do not implement Sound Walk recording, Gallery storage or export. Unused placeholder files may be left untouched or removed safely if references are verified; do not remove user data (there is no persistent Sound Walk/Gallery data in this prototype).
 
-## P0 — Immersive Fullscreen Mode (highest-value feature)
+Goal: a calm, beautifully designed, **single-purpose SONORA experience**, equally credible as an accessibility aid and digital artwork. The new REQ-005 renderer should remain intact.
 
-1. Add a discoverable expand/fullscreen control at the top-right of the existing Live artwork. It is a genuine button with an accessible label such as **"Enter immersive mode"**, >=44 pt touch target and a visible focus/pressed state.
-2. Entering the mode makes the **same live Universe scene** fill the device viewport edge to edge (including behind safe-area backgrounds where supported). Remove the rounded artwork-card treatment, SONORA header, CurrentSound card, Timeline and bottom tab bar while immersed. Avoid stretching or cropping the visual in a way that breaks its composition; let the Skia painter use the actual available dimensions.
-3. Provide an always-discoverable **Exit immersive mode** button at the top-right within the safe area. Do not rely on invisible gestures as the only exit. The app's back action on Android should leave immersion before navigating away, where applicable.
-4. In immersive mode, keep a small unobtrusive but readable **microphone ON/OFF/starting/blocked/error** status, using text and shape as well as color. Never imply capture is active while off. Permission errors or capture failures must remain actionable (show a legible overlay or exit immersion with the error displayed).
-5. Provide two *presentation modes* inside immersion:
-   - **Pure Art** (default): beautiful art with minimal persistent microphone and exit affordances, no event feed overlay.
-   - **Art + Sounds**: on a **real recognized** category change, show a concise unobtrusive icon + category label (e.g. "Birdsong") near the bottom for ~3 seconds, then fade. Also provide a discoverable, accessible way to inspect the current sound if captions fade. Silence, unknown or absent predictions must not fabricate events. Do not show raw score.
-   The choice can live in a small fullscreen overlay control; it need not be persisted in this sprint.
-6. Keep exactly **one SoundSession**, **one microphone stream** and one logical visualization state; toggling fullscreen must not call start/stop, reset the event timeline, create a second renderer loop or restart the artwork transition unnecessarily. Prefer restructuring the existing `LiveScreen`/canvas layout over mounting a second independent `SoundCanvasView`. Avoid competing `SkPicture` allocations or duplicate per-frame updates.
-7. Respect Settings > Visualization:
-   - Animated: normal full sound-driven Universe.
-   - Reduced: genuinely restrained/static art, usable labels and clear exit.
-   - Off: hide/disable entry into an otherwise empty fullscreen art view; explain why if needed.
-   Backgrounding the app must still stop the microphone, as REQ-004 requires.
-8. Portrait first, tested on iPhone 13 Pro Max. Shared code must adapt to other screen dimensions and Android. Landscape/tablet immersive layouts are a later enhancement unless they work trivially without regressions.
-9. No new native fullscreen library for this prototype. Use the existing layout, safe-area and status-bar facilities. Keep transitions restrained; no flashes, strobing or motion that ignores system Reduced Motion.
+## P0 — Single-screen navigation with beautiful Settings access
 
-## P0 — Premium visual polish around the artwork
+1. Replace the REQ-004 four-tab shell in `App.tsx` with a simple **Live / Settings** UI state. **No tab bar, no tabs, no Sound Walk/Gallery placeholders**, no blank space reserved for a bottom navigation bar. Live is the initial screen on app launch.
+2. Place a clear, premium **settings gear button at the upper-right of the Live header**, visually balancing SONORA branding. Give it a >=44 pt tap target, an accessible **"Open settings"** label and an appropriate touch/focus state. Keep the visual language restrained and consistent with Dark/Light palettes. Avoid an emoji gear if it clashes with the design.
+3. Header composition: compact **SONORA** and **Visualize Your Surroundings** at left, settings access at right. The real microphone status must remain visible at a glance, positioned thoughtfully (for example beneath the header or as a separate subtle chip), without fighting for header width or being clipped with Dynamic Type.
+4. Settings opens as a dedicated secondary view with title **Settings** and an obvious **Back to Live** affordance at top-left. Back returns to the same active Live session and artwork; on Android, hardware Back should behave as expected. No bottom tab bar on Settings either.
+5. Preserve the original decision: **Start/Stop listening, Appearance, Visualization, Diagnostics and About live in Settings**. Live displays status and detected sounds but does not duplicate Start/Stop controls. If listening is off, present a calm intentional state and a discoverable way to open Settings, without pretending to be listening.
+6. Keep the existing `SessionProvider` **above screen navigation**, with one microphone session and one feature stream. Opening/closing Settings does not start/stop listening, reset the timeline, or clear detection. As in REQ-004, backgrounding the app stops capture. Prefer to keep the live artwork mounted but paused/hidden when Settings is visible, or otherwise preserve its logical state without a second renderer loop.
 
-### Live screen
+## P0 — Immersive Fullscreen Mode
 
-- Make the Universe the clear visual hero **without hiding the current detected sound or microphone truth below an excessive scroll** on iPhone 13 Pro Max.
-- Preserve the compact **SONORA** / **Visualize Your Surroundings** brand header from REQ-004.
-- Redesign `CurrentSound` as a refined, compact, highly legible category tile: consistent icon, user-facing category, succinct plain-English state ("Detected just now", "Listening for sounds", "Not listening", or clearly distinguished permission/error state as appropriate). No developer `rawLabel`, `Raw score`, numeric confidence or misleading probabilistic language in the main UI. Keep raw values available in Diagnostics.
-- Make off/idle and unknown/silence states visually intentional, not warning-like. Preserve clear honest text.
-- Recent sounds should read like a lightweight curated session history with concise time metadata and consistent spacing. Prioritize the latest ~3 events on Live; keep the underlying event history intact. A "See all" affordance is optional only if it can be implemented truthfully within timebox.
+1. Put a discoverable **Expand artwork** button in the top-right of the artwork area on Live; this is distinct from the **Settings** button in the app header. Both controls must have >=44 pt targets and descriptive accessibility labels.
+2. Expanding makes the **same live Universe** fill the viewport edge to edge. Remove the regular header, recognition tile and timeline in immersion; the rounded card becomes a fullscreen canvas with a responsive composition. Do not create two simultaneously running canvases, render loops or mic sessions.
+3. Provide an always-accessible **Exit immersive mode** button in the top-right safe area. Do not depend only on gestures. Android Back exits immersion before leaving Live.
+4. Show an unobtrusive but clearly readable microphone **ON/OFF/starting/blocked/error** indicator, with text/symbols beyond color. If permission is blocked or the session errors, the user must see how to resolve it (overlay or return to normal Live).
+5. Two optional presentation variants:
+   - **Pure Art** (default): almost uninterrupted artwork; only essential mic state, presentation toggle and exit affordances.
+   - **Art + Sounds**: on a **real** category change, show an icon and human-readable category label for about 3 seconds, then fade. A user must still be able to inspect the current sound accessibly. Never invent detections or show raw YAMNet scores.
+   Switching presentation changes overlays only, not classification or artwork generation.
+6. Respect Visualization = Animated / Reduced / Off, device Reduced Motion, active/background state and theme. If Visualization is Off, don't offer a blank fullscreen artwork. No flashes, strobing or misleading directional/spatial visual claims.
+7. Portrait iPhone 13 Pro Max first; shared responsive implementation for Android. Landscape/iPad fullscreen polish is deferred unless trivial. No new native fullscreen dependency.
 
-### Navigation, icons and typography
+## P0 — Premium Live and Settings polish
 
-- Replace the current mixed emoji/Unicode bottom-tab icons with **one visually consistent icon family**, in Live / Sound Walk / Gallery / Settings order. Use labels with icons, not icons alone; preserve clear selection state and >=44 pt touch targets.
-- Avoid introducing new native dependencies or forcing another dev-build install merely for icons. Prefer already available assets/primitives; if an additional native dependency is unavoidable, stop and report instead of expanding scope.
-- Establish a small shared spacing/radius/type scale so screens have consistent hierarchy and alignment; use restrained navy/lavender/mint/gold accents in Dark and pearl/lilac/turquoise in Light, consistent with `theme.ts`.
-- Keep artwork visually rich, controls quiet. Prefer subtle elevation/opacity/separation over aggressive blur/glass effects. No UI text over busy artwork without a sufficiently opaque legibility treatment.
-- Avoid truncation or overlapping controls at larger text sizes and safe-area boundaries.
+### Live
 
-### Settings and placeholders
+- The Universe remains the visual hero while **current sound** and **microphone state** stay readable without excessive scrolling on iPhone 13 Pro Max.
+- Redesign `CurrentSound` as a premium compact tile: consistent recognizable category icon, short English name, and honest status ("Detected just now", "Listening for sounds", "Not listening", or an appropriate error). No `Model label`, `Raw score`, arbitrary numeric confidence or technical jargon in the user-facing Live view; keep those details in Diagnostics.
+- Make silence, unknown, permission-denied and microphone-off states intentional and unmistakable, not visually alarming unless there is an actual error.
+- Refine `Timeline` into a calm, lightweight recent-sounds section with readable category/time information, ideally showing the latest ~3 entries while keeping the actual in-memory timeline intact. Do not implement a new Gallery or navigation destination.
+- Use subtle, coherent spacing, iconography, typography, radius and foreground separation. No gratuitous "glass" effects that make text unreadable over the artwork.
 
-- Keep Start/Stop listening, Appearance, Visualization, Diagnostics and About **in Settings**, as explicitly decided in REQ-004. Do not move microphone controls back onto Live.
-- Polish grouped Settings spacing, labels and control hierarchy while preserving actual permission handling, state transitions and About safety disclaimer.
-- Make Sound Walk and Gallery **Coming soon** screens feel consistent with the new look, but keep the wording honest. Do **not** implement recording, gallery persistence, artwork export, a new art-style selector or onboarding in REQ-006.
+### Settings
 
-## Accessibility & correctness
+- Make Settings feel like part of the same high-quality SONORA app: clear title, back button, grouped Listening / Appearance / Visualization / Diagnostics / About controls, tidy card/row spacing and coherent icons.
+- Preserve all existing functionality, permission handling, start/stop concurrency guard, Reduced Motion behavior and About privacy/safety disclaimer.
+- Use the current navy/lavender/mint/gold Dark and pearl/lilac/turquoise Light palette from `theme.ts`; keep accessible contrast and readable state labels.
+- Do not introduce native dependencies solely for decorative icons. Prefer current primitives/assets. If a new native dependency is unavoidable, report first rather than unexpectedly invalidating the existing dev build.
 
-- Use actual text labels and screen-reader semantics; the Skia artwork stays decorative for accessibility.
-- Fullscreen open/close and Pure Art / Art + Sounds selection are keyboard/screen-reader reachable with descriptive state.
-- Preserve user control, honest listening state and real detected category labels; do not use color, motion or haptics as the only signal.
-- Respect device Reduced Motion, Dark/Light and dynamic text sizes. Verify sufficient contrast (target standard-text contrast >=4.5:1 where applicable).
-- Never imply directional sound localization, safety reliability or a detected category when only uncertain/unknown data exist.
+## Accessibility, correctness and guardrails
 
-## Test/acceptance checklist
+- Microphone status always reflects reality; no fake detection labels, no direction claims, no emergency/safety reliability claims.
+- Fullscreen, Settings/Back and presentation toggles must be explicit accessible controls; preserve screen reader announcements for real sound events.
+- Artwork remains decorative; all meaningful recognition information is available in text.
+- Support larger text/Dynamic Type, contrast, safe areas, Light/Dark and Reduced Motion. Prefer >=4.5:1 normal-text contrast where applicable.
+- Keep one `SoundSession`, preserve app foreground/background semantics, do not alter YAMNet model thresholds, native audio adapters or REQ-005 visual physics.
+- Do not implement Sound Walk, Gallery, recording, export, onboarding, notification/haptic systems or more art styles in this REQ.
 
-- [ ] Default Live looks visually coherent in Dark and Light; no raw YAMNet/debug values in the main sound tile or timeline.
-- [ ] Four tabs have consistent recognizable icons, visible labels, selection and safe-area treatment.
-- [ ] Fullscreen entry expands the **same** Universe to the actual viewport and hides chrome; exit is always reachable and restores the same Live session.
-- [ ] Start listening in Settings → Live → fullscreen → exit → Gallery → Live: capture stays single and event timeline is preserved.
-- [ ] Fullscreen while microphone OFF, starting, on, blocked and error: truthful visible state, no silent failure or fake capture.
-- [ ] Pure Art has minimal controls; Art + Sounds shows **real** detected categories and never fabricated ones. Labels fade without causing overlap and remain retrievable accessibly.
-- [ ] Reduced Motion and Visualization Off behave predictably; no inaccessible empty fullscreen.
-- [ ] Backgrounding/foregrounding still stops/reports the capture according to existing app lifecycle rules.
-- [ ] Small and large text, portrait safe area, iPhone 13 Pro Max and both themes: no obscured text, missing exit or clipped tab controls.
-- [ ] No new native dependencies; no YAMNet/classification threshold changes or second mic/session.
-- [ ] `npm run typecheck` and `npm test` pass; add focused UI/state tests for fullscreen transitions and truthful labels if feasible.
-- [ ] Physical iPhone smoke test and screenshots of **Live Dark**, **Live Light**, **Immersive Pure Art** and **Immersive Art + Sounds**. State explicitly which checks were done on device versus only in code.
+## Acceptance checklist
 
-## P1 only if time remains
+- [ ] On startup, the only main screen is Live; **no bottom navbar, no Sound Walk, no Gallery** visible or reachable.
+- [ ] The gear button is visible and reachable on Live; Settings has a clear Back to Live affordance and no tab bar.
+- [ ] Opening Settings and returning (repeatedly) preserves active listening, recognition timeline and logical Universe state; no second microphone or frame loop.
+- [ ] Start/Stop controls exist in Settings, not Live; Live still shows accurate microphone state and permission/error messaging.
+- [ ] Live's current sound tile and timeline have premium user-facing copy/icons without raw model labels or scores; diagnostics retains raw values.
+- [ ] Fullscreen uses the current Universe across the viewport; no underlying chrome, duplicated canvas or black gaps; exit is always visible and returns to Live.
+- [ ] Pure Art and Art + Sounds overlays behave as described; only genuinely detected sounds are labelled.
+- [ ] Microphone OFF/starting/ON/blocked/error states are truthful and actionable in normal and immersive views.
+- [ ] Animated/Reduced/Off, Dark/Light and app backgrounding behave correctly.
+- [ ] iPhone 13 Pro Max portrait, safe areas, large text, both themes: no clipped header, gear, captions, exit or Settings back controls.
+- [ ] `npm run typecheck` and `npm test` pass; add focused tests for Live/Settings/fullscreen state transitions and honest labels.
+- [ ] Physical-device smoke test plus screenshots of Live Dark, Live Light, Settings, Immersive Pure Art and Immersive Art + Sounds. Report exactly what was tested on iPhone.
 
-- Persist chosen Dark/Light appearance across app restarts, provided it does not require new native build work.
-- Give Settings and Coming Soon pages more polished empty states and subtle, accessible microinteractions.
-- A full-screen gallery of session history or a dedicated "See all recent sounds" screen, if genuinely useful after real-device review.
+## P1 if time remains
 
-## Performance / REQ-005 handoff
+- Persist Dark/Light appearance across restarts without new native build work.
+- Add subtle, accessible Settings transition and recognition-tile microinteractions.
+- Evaluate landscape/tablet immersive sizing separately.
 
-REQ-005 now uses one new `SkPicture` per frame. Its CanvasKit measurement is not a native iPhone benchmark. Do not rewrite `UniversePainter`, thresholds or rendering physics as part of this UI task. When toggling fullscreen, avoid accidentally mounting two painters or causing continuous size-change reconstruction. If real-device testing reveals significant memory growth, frame hitches or missed quiet transients, report a separate REQ-005 follow-up rather than hiding the issue inside UI styling.
+## Performance handoff
 
-## File entry points
+REQ-005 was accepted visually on iPhone, but long-session memory/thermal measurements are still valuable because it builds one `SkPicture` per frame. **Do not rewrite `UniversePainter` in REQ-006.** Check that switching normal/fullscreen size neither mounts concurrent painters nor repeatedly rebuilds on every frame. Report any newly observed performance regression explicitly.
 
-- `App.tsx` — app shell, tab bar visibility, app-wide immersive state if needed
-- `src/ui/LiveScreen.tsx` — immersive entry and Live visual hierarchy
-- `src/viz/SoundCanvasView.tsx` — same-canvas immersive dimensions, clip radius, pause/resume
-- `src/ui/CurrentSound.tsx`, `Timeline.tsx` — concise user-facing presentation
-- `src/ui/TabBar.tsx`, `icons.ts`, `theme.ts` — icon language and tokens
-- `src/ui/SettingsScreen.tsx`, `ComingSoonScreen.tsx` — polish without functionality expansion
-- `src/app/SessionProvider.tsx` — keep one session owner, avoid behavior changes
+## Implementation entry points
 
-**Implementation stop:** Prioritize stable immersive mode and visibly improved Live/UI polish by 65 minutes. Report screenshots, tests, remaining caveats and actual iPhone observations; do not quietly expand into REQ-007 Sound Walk.
+- `App.tsx` — replace tab navigation with Live/Settings; keep session provider above view state
+- `src/ui/LiveScreen.tsx` — settings gear, responsive artwork, immersive controls, current sound hierarchy
+- `src/viz/SoundCanvasView.tsx` — one canvas across normal/fullscreen layout and responsive clip/bounds
+- `src/ui/SettingsScreen.tsx` — secondary screen header, Back to Live, premium grouped styling
+- `src/ui/CurrentSound.tsx`, `Timeline.tsx` — user-friendly text/icons and layout
+- `src/ui/theme.ts`, `icons.ts` — shared coherent tokens and icons
+- `src/ui/TabBar.tsx`, `ComingSoonScreen.tsx` — remove from active UI; safely clean dead code only if no references remain
+- `src/app/SessionProvider.tsx` — retain one capture controller and feature stream
+
+**Implementation stop:** Within ~60 minutes deliver the focused Live/Settings flow, polished UI and robust Immersive Mode. Do not expand to Sound Walk/Gallery or rewrite the validated REQ-005 artwork. Report tests, screenshots and remaining limitations.
