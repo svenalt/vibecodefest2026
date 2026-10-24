@@ -1,109 +1,67 @@
-# REQ-002 — SONORA UI, navigation, and app-wide appearance
+# REQ-002 — SONORA UI and Light/Dark (2-hour prototype scope)
 
-**Status:** Ready for implementation after REQ-001 baseline
-**Date:** 2026-10-24
-**Priority:** High
-**Target:** iOS + Android, shared React Native / Expo app
-**Recommended Claude Code:** Sonnet 5.5, Medium effort
-**Depends on:** REQ-001
-**Scope:** Visual/UI refinement only; do not replace the working microphone or YAMNet integration
+**Status:** Ready for implementation; prototype v0.1 only  
+**Date:** 2026-10-24  
+**Priority:** P0 after REQ-001 baseline  
+**Recommended Claude Code:** Sonnet 5.5, **Medium** effort  
+**Timebox:** **30 minutes of implementation**, excluding device-build troubleshooting  
+**Target:** Shared React Native / Expo TypeScript UI for iOS and Android; iPhone demonstration first  
+**Depends on:** REQ-001 commit `7d9c1c0`; REQ-001 native iPhone execution is still unverified
 
-## 1. Goal
+## 1. Goal and strict boundary
 
-Turn the functional SoundCanvas proof of concept into the product **SONORA**: a polished, calm, accessible English-language sound-awareness and generative-art app, with an intentional first-launch appearance choice and persistent Light/Dark settings.
+Rebrand the existing REQ-001 single-screen sound-awareness prototype as **SONORA**, tagline **“Visualize Your Surroundings”**. Make the screen visually appealing, readable and ready to host the Universe artwork from REQ-003.
 
-**Brand tagline:** “Visualize Your Surroundings”.
+**Do not rewrite microphone capture, YAMNet, Swift, classifier thresholds, adapters, session controller or the existing Skia pipeline merely for visual design.** Native compilation/device validation is a separate immediate task. Keep all app text in English.
 
-SONORA has two equal identities: practical sound awareness (event names, pictograms, accessibility) and generative art (immersive sound visualization). Neither should obscure the other.
+This is a **working two-hour demo**, not a production-ready UI. Stop when the P0 items and quick smoke check pass.
 
-## 2. Required product structure
+## 2. P0 — implement now
 
-- **Live:** the main and primary screen. Preserve REQ-001's genuine on-device classifier, microphone state, Start/Stop, current detected event, event timestamp/history, and errors/unknown states. Place the generative visualization at the visual center.
-- **Sound Walk:** a clearly identified entry point to a future session recording flow (REQ-004). If not yet implemented, it must not pretend to record or silently store anything; use a clear unavailable/preview state until functional.
-- **Gallery:** reserved for saved Sound Walk artworks (REQ-004), with a legitimate empty state. No fabricated saved walks.
-- **Settings:** app appearance, artwork style/variant, Reduce Motion, microphone/privacy explanation, and visible diagnostic link for development builds.
-- Navigation must be coherent and simple, with correct handling of an active microphone session on route changes per REQ-001. Do not create competing microphone sessions.
+1. **One Live screen only.** Reuse the existing REQ-001 screen, controls and events. Show SONORA branding, a restrained tagline, a central visualization, **Start Listening / Stop Listening**, the actual microphone/listening state, the latest recognized sound in plain English with an icon, and a concise recent-event list if already available.
+2. **Honest states.** Preserve existing permission-denied, silence/no-confident-sound, loading and model-error behavior; do not display simulated detections as live YAMNet results. Do not claim reliable emergency or medical alerts.
+3. **Simple Light / Dark toggle.** Add an immediately usable switch or two-option control on the Live screen. Apply one shared semantic color palette to the existing screen and artwork container; default to Dark. A lightweight local persistence option is welcome **only if trivial**; do not block the demo on persistence.
+4. **Universe-ready styling.** The existing Skia rendering may be reused until REQ-003 changes it. App theme can temporarily determine Universe Light/Dark palette. Ensure foreground text and controls remain legible over art.
+5. **Preserve shared platform design.** All new UI/theme code stays in shared React Native/TypeScript. No Android-specific work for this requirement.
 
-## 3. Appearance modes: FIRST-LAUNCH DECISION
+### Minimal design tokens
 
-- Show an accessible, short appearance choice on first launch: **Light**, **Dark**, and optionally **Follow System** (recommended third option). The user must actively confirm a choice before proceeding. Do not request microphone permission merely to show this screen.
-- Persist the selected appearance **locally**; it survives restart/offline use. No account or cloud sync.
-- Allow changing it later via **Settings > Appearance**, immediately and without losing the current non-audio UI state.
-- If “Follow System” is offered, react to system appearance changes. Otherwise honor the manual choice even when the device theme changes.
-- No distracting theme transition; respect Reduce Motion. App/theme state is separate from listening state and from chosen visual-art style.
-- Light and Dark apply to the **whole app**: backgrounds, cards, buttons, typography, navigation, charts/event pills, empty/error states, onboarding, overlays, and settings. No light-on-light or dark-on-dark fragments.
+| Element | Dark | Light |
+| --- | --- | --- |
+| Background | `#0B1120` | `#F5F7FC` |
+| Surface | `#172438` | `#FFFFFF` |
+| Main text | `#F5F8F8` | `#25344F` |
+| Secondary text | `#B9C7D1` | `#52627B` |
+| Interactive accent | `#73EDD3` | `#317D8E` |
+| Artistic lavender | `#C5ADFF` | `#7066B5` |
 
-## 4. Visual design system
+Use consistent tokens; avoid creating a full design-system infrastructure.
 
-Use semantic tokens rather than hardcoded colors in individual screens. Keep existing good REQ-001 functionality and architecture.
+## 3. P1 — only if P0 is finished early
 
-### Dark foundation (from agreed SONORA direction)
-- App background #0B1120
-- Elevated surface #172438
-- Primary text #F5F8F8
-- Secondary text #B9C7D1
-- Accent/mint #73EDD3
-- Artistic lavender #C5ADFF
-- Nature #B2E58E
-- Attention #FFC08A
-- Error #FF7E89
+- Persist Light/Dark in local storage and restore it at restart.
+- Tidy spacing/typography on the iPhone 13 Pro Max.
+- Add a single, unobtrusive entry into future Sound Walk functionality **only if it clearly says unavailable**.
 
-### Light foundation (initial design tokens; verify contrast)
-- App background #F5F7FC or warm pearl-white
-- Primary surface #FFFFFF
-- Secondary/elevated surface #EAF0F7
-- Primary text #25344F
-- Secondary text #52627B
-- Interactive accent #317D8E (use sufficiently dark tint for small text)
-- Lavender accent #7066B5
-- Positive, warning, and error tokens must be dark enough for text/icons on light surfaces
-- Fine pearlescent/lilac/turquoise atmospheric gradients are for artwork/large surfaces only, never behind low-contrast text.
+P1 is optional. Prioritize a running build over completing these items.
 
-**Sound-category colors** remain semantically consistent across modes: birds gold, wind green, water turquoise, voices violet, traffic orange, rain blue, sirens pink. Adjust saturation/contrast for light backgrounds; never communicate an event only by color.
+## 4. Explicitly deferred after the demo
 
-## 5. Live screen requirements
+Preserve these agreed product decisions for future REQs; **do not implement them in this 30-minute task**:
 
-- Product name SONORA and tagline “Visualize Your Surroundings” in appropriate onboarding/brand placement; do not waste the critical live-screen area on oversized branding.
-- Clear Start Listening / Stop Listening and always-visible listening/microphone state.
-- Dominant artwork viewport with adequate padding and no interference with accessible events.
-- Current event: plain-English label + readable icon + optional confidence/uncertainty wording (never portray raw YAMNet scores as calibrated probabilities).
-- Concise recent-event list with timestamps; distinguish Silence, No confident sound, Permission denied, and Model error.
-- Record/Sound Walk affordance must be distinguishable from merely enabling live listening.
-- Visible controls and events remain legible during bright or energetic art animations.
+- First-launch Light/Dark choice and optional Follow System, plus full Settings screen/persistence.
+- App-wide multi-screen navigation, Sound Walk, Gallery, saved artwork, detailed event history, diagnostic settings and advanced onboarding.
+- Independent artwork-style selector; **Universe remains the default** with future Universe Light and Universe Dark variants independent of app appearance.
+- Additional artistic styles (Flow/Bloom), complex transitions, full portrait/landscape polish, exhaustive accessibility audit and broad automated UI test suite.
+- Native Android YAMNet adapter, store release, cloud, accounts, telemetry or subscriptions.
 
-## 6. Artwork theme vs. app theme: independent concepts
+## 5. Prototype acceptance / stop conditions
 
-- **App appearance:** Light | Dark | Follow System (if implemented).
-- **Artwork style:** Universe is the initial default. Future artistic styles can be added without rewriting the app shell.
-- **Universe appearance:** Universe Light and Universe Dark are separate artwork palette variants. The default artwork palette may follow the app appearance, but users must eventually be able to override it independently. Do not force all artwork to be dark when the app is dark, or vice versa.
-- Universe itself is extended in REQ-003. REQ-002 may use the functioning REQ-001 generative view as a placeholder, without implementing the advanced renderer twice.
+- [ ] SONORA Live screen loads, with English labels and tagline.
+- [ ] Existing Start/Stop and genuine REQ-001 event display remain connected; unknown/error states stay honest.
+- [ ] User can switch between legible Light and Dark in the current screen.
+- [ ] The UI remains usable when microphone permission is denied or native YAMNet is unavailable.
+- [ ] `npm run typecheck` passes. Run existing tests if quick; **no large new test suite or long report**.
+- [ ] Record in the final handoff what was actually tested on a physical iPhone versus only compiled/bundled or mocked.
 
-## 7. Accessibility and privacy
-
-- All interface copy in **English**.
-- VoiceOver/TalkBack descriptions, clear labels, dynamic text where practical, large touch targets, focus/reading order, and non-color indicators.
-- Respect device Reduced Motion and provide a user-accessible Reduce Motion/static artwork path.
-- Maintain explicit listening consent, no background capture, on-device YAMNet, and no raw-audio persistence from REQ-001.
-- Do not describe this experimental demo as guaranteed to detect dangerous sounds.
-
-## 8. Non-goals
-
-- No second YAMNet pipeline, classifier rewrite, real Sound Walk capture/storage (REQ-004), authentication, cloud, subscriptions, complex charts, emergency monitoring, or unimplemented safety claims.
-- No requirement to complete native Android inference here if REQ-001 Android adapter remains a documented follow-up.
-
-## 9. Acceptance criteria
-
-- [ ] The displayed product branding is SONORA with English copy and tagline.
-- [ ] First launch presents and locally persists a Light/Dark appearance choice (and Follow System if offered).
-- [ ] Appearance change in Settings updates every active UI surface correctly and survives a cold restart.
-- [ ] Dark and Light screens pass reasonable text/control contrast review, with distinguishable active/disabled/permission states.
-- [ ] The live event label, icon, recent events, Start/Stop, and diagnostics remain functional through the existing REQ-001 interfaces.
-- [ ] Silence/unknown/error states are accurate and are not mistaken for detected sounds.
-- [ ] App appearance does not overwrite artwork style selection or silently change capture state.
-- [ ] Sound Walk and Gallery do not imply unimplemented storage functionality.
-- [ ] Automated UI/theme-state tests cover first launch, persistence, manual/system override, and Reduce Motion where possible.
-- [ ] Shared TypeScript UI remains iOS/Android-compatible; types/tests pass, and device-only verification is reported honestly.
-
-## 10. Implementation note
-
-Complete REQ-001 or establish a stable API/branch before applying this requirement. This document is a **future work specification**, not an instruction to interrupt the ongoing classifier implementation. Keep changes incremental and avoid modifying native sound capture or model weights.
+**Rule:** If this timebox expires, hand off the current working state. Do not keep expanding UI. Continue to REQ-003 or device verification.
