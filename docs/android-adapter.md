@@ -1,5 +1,7 @@
 # Android YAMNet adapter (REQ-009)
 
+> **Current acceptance (2026-10-25):** Sven has tested and accepted the delivered functionality on devices, including REQ-010. See [owner acceptance](release/device-acceptance-2026-10-25.md). Earlier “not run” statements below are historical coding-session evidence, not the current device-acceptance status. New fixes/configuration are tracked in REQ-011; binary audits and store operations remain separate.
+
 Status: **implemented, native debug build passes, NOT validated on any Android device.** Android audio classification must not be described as working, and Android must not be called "supported", until the physical-device gates below pass. Google Play release readiness is a separate gate and is not granted here.
 
 Android is a second platform adapter, not a different architecture. It reuses the model, label map, taxonomy, tracker, session, listening-intent controller, UI and visualization unchanged. The only Android-specific TypeScript is one branch in `src/native/createSoundInput.ts`.

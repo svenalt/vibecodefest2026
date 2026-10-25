@@ -17,12 +17,12 @@ Originally created for **Vibe Code Fest Basel 2026**. Earlier working names were
 
 ## Project status
 
-AUVIONA 1.0 is in release hardening (REQ-008). It is not yet an App Store release, and it is not a safety tool.
+AUVIONA 1.0 has been tested on devices and accepted by Sven on 2026-10-25 (REQ-001–010). Final fixes and configuration are tracked in REQ-011. It is not yet an App Store release, and it is not a safety tool.
 
 | Platform | Status |
 | --- | --- |
-| iOS | Native on-device YAMNet audio pipeline and shared UI implemented and unit-tested. **Not yet built or run on an iPhone** and **not approved for App Store submission**; see [docs/release/auviona-release-checklist.md](docs/release/auviona-release-checklist.md) for the release gates and [docs/implementation-notes.md](docs/implementation-notes.md) for what is and is not verified. |
-| Android | Native Kotlin microphone/YAMNet adapter implemented (REQ-009) with unit tests and a full Gradle debug build. **Not yet run on any Android device, so not supported**; see [docs/android-adapter.md](docs/android-adapter.md) for the device gates. |
+| iOS | Native pipeline and UI accepted by Sven after device testing. See [acceptance record](docs/release/device-acceptance-2026-10-25.md); final release work is tracked in REQ-011. |
+| Android | Native Kotlin/YAMNet adapter and shared UI accepted by Sven after device testing. Earlier build evidence is in [Android notes](docs/android-adapter.md). |
 | Web | Public interactive visualization demo; its example labels are illustrative, not live detections. |
 
 **Not a safety system.** It is for art and general sound awareness. Do **not** rely on AUVIONA for emergencies, alarms, safety-critical decisions, navigation, or medical decisions.

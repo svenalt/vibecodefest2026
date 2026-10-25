@@ -1,6 +1,6 @@
 # REQ-009 — AUVIONA Android: native microphone, YAMNet and device parity
 
-**Status:** Ready for implementation — Android support **NOT verified** until physical-device acceptance passes  
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-25  
 **Priority:** P0 for functional Android support; Google Play release is a separate gate  
 **Difficulty:** High (8/10) — Kotlin/MediaPipe integration, real-time audio, lifecycle and device debugging  

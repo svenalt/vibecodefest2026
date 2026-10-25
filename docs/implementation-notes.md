@@ -1,5 +1,7 @@
 # REQ-001 implementation notes
 
+> **Current acceptance (2026-10-25):** Sven has tested and accepted the delivered functionality on devices, including REQ-010. See [owner acceptance](release/device-acceptance-2026-10-25.md). Earlier “not run” statements below are historical coding-session evidence, not the current device-acceptance status. New fixes/configuration are tracked in REQ-011; binary audits and store operations remain separate.
+
 Last updated: 2026-10-24. Automated checks were run on a Mac without Xcode, so nothing below marked "not verified" has been built or run on an iPhone.
 
 ## Status against the acceptance criteria

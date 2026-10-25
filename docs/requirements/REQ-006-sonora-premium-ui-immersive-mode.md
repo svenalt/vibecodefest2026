@@ -1,6 +1,6 @@
 # REQ-006 — SONORA Focused Live UI & Immersive Fullscreen
 
-**Status:** Ready for implementation — REQ-005 accepted on physical iPhone by Sven  
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** P0 — streamlined live experience and premium UI  
 **Recommended Claude Code:** **Sonnet 5.5, High effort** (Medium for cosmetic follow-ups)  

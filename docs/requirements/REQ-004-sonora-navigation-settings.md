@@ -1,6 +1,6 @@
 # REQ-004 — SONORA four-tab navigation and Settings
 
-**Status:** Ready for implementation
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24
 **Priority:** P0 — iPhone usability follow-up
 **Recommended Claude Code:** Sonnet 5.5, **Medium** effort

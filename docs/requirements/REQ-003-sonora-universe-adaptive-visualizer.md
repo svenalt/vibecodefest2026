@@ -1,6 +1,6 @@
 # REQ-003 — SONORA Universe adaptive sound visualizer (2-hour prototype scope)
 
-**Status:** Ready for rapid implementation after REQ-001; integrate with simplified REQ-002  
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** P0 — signature demo experience  
 **Recommended Claude Code:** Sonnet 5.5, **Medium** effort (High only for a concrete difficult renderer/native issue)  

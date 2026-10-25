@@ -1,6 +1,6 @@
 # REQ-001 — SoundCanvas: cross-platform Expo architecture and live sound-awareness proof of concept
 
-**Status:** Ready for implementation  
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** High  
 **Target repository:** svenalt/vibecodefest2026  

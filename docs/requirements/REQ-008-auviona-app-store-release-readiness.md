@@ -1,6 +1,6 @@
 # REQ-008 — AUVIONA V1.0: release identity, privacy, session preferences and App Store readiness
 
-**Status:** Ready for implementation — **NOT approved for App Store submission**
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-25
 **Priority:** P0 release blockers + P1 product polish
 **Difficulty:** Medium–High (7/10); straightforward shared-UI changes, but native build/signing and App Store compliance require real-device evidence

@@ -1,6 +1,6 @@
 # REQ-007 — SONORA Live Focus & Universe V3: flowing light-ribbon soundscape
 
-**Status:** Ready for implementation — REQ-006 immersive UI landed, focused navigation still pending
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24
 **Priority:** P0 — signature artwork quality
 **Difficulty:** High (9/10), app navigation/state integration + procedural Skia visual tuning

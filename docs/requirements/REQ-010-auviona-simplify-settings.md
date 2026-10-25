@@ -1,6 +1,6 @@
 # REQ-010 — AUVIONA: Simplify Settings and show current sound in Immersive Mode
 
-**Status:** Ready for implementation  
+**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-25  
 **Priority:** P1 — focused UI polish  
 **Difficulty:** Low (3/10)  
