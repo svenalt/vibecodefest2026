@@ -9,10 +9,9 @@ export interface NavState {
 
 export type NavAction =
   | { type: 'openSettings' }
-  | { type: 'enterImmersive'; vizOn: boolean }
+  | { type: 'enterImmersive' }
   | { type: 'exitImmersive' }
-  | { type: 'back' }
-  | { type: 'vizOff' };
+  | { type: 'back' };
 
 export const INITIAL_NAV: NavState = { screen: 'live', immersive: false };
 
@@ -21,10 +20,9 @@ export function navReducer(state: NavState, action: NavAction): NavState {
     case 'openSettings':
       return { screen: 'settings', immersive: false };
     case 'enterImmersive':
-      // Never a blank full-screen view: immersion needs the artwork and the Live screen.
-      return action.vizOn && state.screen === 'live' ? { ...state, immersive: true } : state;
+      // Immersion is a presentation of Live; the artwork is always shown (REQ-010).
+      return state.screen === 'live' ? { ...state, immersive: true } : state;
     case 'exitImmersive':
-    case 'vizOff':
       return state.immersive ? { ...state, immersive: false } : state;
     case 'back':
       if (state.immersive) return { ...state, immersive: false };

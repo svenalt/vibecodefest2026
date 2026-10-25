@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Current } from '../core/eventTracker';
 import type { SessionSnapshot } from '../core/soundSession';
 import { IDLE_CAPTURE_STATE, type CaptureStatus, type PermissionStatus } from '../core/types';
-import { captionKey, micState, soundSummary, type MicKind } from './status';
+import { immersiveCard, micState, soundSummary, type MicKind } from './status';
 
 function snap(status: CaptureStatus, permission: PermissionStatus = 'granted', error: string | null = null): SessionSnapshot {
   return {
@@ -77,19 +77,34 @@ describe('soundSummary', () => {
   });
 });
 
-describe('captionKey', () => {
-  it('produces no caption for silence, unknown or a stopped microphone', () => {
-    expect(captionKey(true, none)).toBeNull();
-    expect(captionKey(true, quiet)).toBeNull();
-    expect(captionKey(false, speech)).toBeNull();
+describe('immersiveCard', () => {
+  const music: Current = { kind: 'event', category: 'music', score: 0.7, rawLabel: 'Music', sinceMs: 9000 };
+
+  it('Pure Art never shows a card, whatever is heard', () => {
+    for (const cur of [speech, quiet, none]) expect(immersiveCard('art', 'on', cur, true)).toBeNull();
+    expect(immersiveCard('art', 'blocked', none, false)).toBeNull();
   });
 
-  it('is stable while the same detection continues and changes on a new one', () => {
-    const k1 = captionKey(true, speech);
-    expect(k1).not.toBeNull();
-    expect(captionKey(true, { ...speech, score: 0.6, rawLabel: 'Speech' })).toBe(k1);
-    expect(captionKey(true, { ...speech, category: 'music' })).not.toBe(k1);
-    // Same category confirmed again after it lapsed counts as a new detection.
-    expect(captionKey(true, { ...speech, sinceMs: 9000 })).not.toBe(k1);
+  it('Art + Sounds shows the current sound at once, with no tap or new event needed', () => {
+    // Entering (or switching to) Art + Sounds while a sound is already confirmed.
+    expect(immersiveCard('sounds', 'on', speech, true)).toMatchObject({ category: 'speech', title: 'Speech', tone: 'event' });
+    // And with nothing confirmed yet: the listening status, never an empty slot.
+    expect(immersiveCard('sounds', 'on', none, false)).toMatchObject({ title: 'Listening for sounds', tone: 'calm' });
+  });
+
+  it('a newly confirmed sound replaces the previous one', () => {
+    expect(immersiveCard('sounds', 'on', speech, true)?.title).toBe('Speech');
+    expect(immersiveCard('sounds', 'on', music, true)).toMatchObject({ category: 'music', title: 'Music', tone: 'event' });
+  });
+
+  it('silence, unknown, stopped or blocked never leave a stale detection on screen', () => {
+    expect(immersiveCard('sounds', 'on', quiet, true)).toMatchObject({ category: 'silence', tone: 'calm' });
+    expect(immersiveCard('sounds', 'on', none, true)).toMatchObject({ category: 'unknown', tone: 'calm' });
+    for (const mic of ['off', 'starting', 'stopping', 'blocked', 'error'] as MicKind[]) {
+      const card = immersiveCard('sounds', mic, speech, true);
+      expect(card).not.toBeNull();
+      expect(card!.tone).not.toBe('event');
+      expect(card!.title).not.toBe('Speech');
+    }
   });
 });

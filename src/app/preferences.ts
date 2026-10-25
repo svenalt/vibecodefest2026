@@ -1,22 +1,20 @@
 import type { Unsubscribe } from '../core/types';
 import type { ThemeMode } from '../ui/theme';
 
-export type VizChoice = 'animated' | 'reduced' | 'off';
-
-/** Everything AUVIONA remembers between launches. No audio, sound labels or history. */
+/**
+ * Everything AUVIONA remembers between launches. No audio, sound labels or history.
+ * Motion is not a preference: it always follows the device's Reduce Motion setting (REQ-010).
+ */
 export interface Preferences {
   theme: ThemeMode;
-  /** null = follow the device's Reduce Motion setting until the user picks a mode. */
-  viz: VizChoice | null;
   /** The user's listening intent (REQ-008 P0-C), not whether the microphone is on right now. */
   listening: boolean;
   hapticAlerts: boolean;
 }
 
-/** A clean first install: Dark, follow Reduce Motion, listen automatically, haptics off. */
+/** A clean first install: Dark, listen automatically, haptics off. */
 export const DEFAULT_PREFERENCES: Preferences = {
   theme: 'dark',
-  viz: null,
   listening: true,
   hapticAlerts: false,
 };
@@ -30,7 +28,6 @@ export const RECOVERED_PREFERENCES: Preferences = { ...DEFAULT_PREFERENCES, list
 export const PREFERENCES_KEY = 'auviona.preferences';
 const VERSION = 1;
 const THEMES: readonly ThemeMode[] = ['dark', 'light'];
-const VIZ: readonly VizChoice[] = ['animated', 'reduced', 'off'];
 
 /** fresh = nothing stored; stored = read cleanly; recovered = unreadable, fell back to RECOVERED_PREFERENCES rules. */
 export type PreferencesSource = 'fresh' | 'stored' | 'recovered';
@@ -42,7 +39,8 @@ export function serializePreferences(p: Preferences): string {
 /**
  * Deterministic and total: never throws. Only a missing key counts as a first install.
  * A field with an invalid value falls back to its default, except `listening`, which falls
- * back to off.
+ * back to off. The obsolete `viz` field (REQ-004..008 Motion setting) is ignored, whatever its
+ * value, and dropped on the next write; the version stays 1 so no other choice is lost.
  */
 export function parsePreferences(raw: string | null): { prefs: Preferences; source: PreferencesSource } {
   if (raw === null) return { prefs: DEFAULT_PREFERENCES, source: 'fresh' };
@@ -60,13 +58,11 @@ export function parsePreferences(raw: string | null): { prefs: Preferences; sour
   const d = data as Record<string, unknown>;
   const prefs: Preferences = {
     theme: THEMES.includes(d.theme as ThemeMode) ? (d.theme as ThemeMode) : DEFAULT_PREFERENCES.theme,
-    viz: d.viz === null || VIZ.includes(d.viz as VizChoice) ? (d.viz as VizChoice | null) : DEFAULT_PREFERENCES.viz,
     listening: d.listening === true,
     hapticAlerts: d.hapticAlerts === true,
   };
   const clean =
     prefs.theme === d.theme &&
-    prefs.viz === d.viz &&
     typeof d.listening === 'boolean' &&
     typeof d.hapticAlerts === 'boolean';
   return { prefs, source: clean ? 'stored' : 'recovered' };

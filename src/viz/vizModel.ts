@@ -2,6 +2,14 @@ import type { Current } from '../core/eventTracker';
 import type { AudioFeatures, SoundCategory } from '../core/types';
 
 export type Motif = 'waves' | 'pulses' | 'particles' | 'forms' | 'ambient';
+
+/** Animated, or one still frame. There is no "off": the artwork is always shown. */
+export type VizMode = 'animated' | 'reduced';
+
+/** Motion follows the device alone: Reduce Motion gives the still artwork (REQ-010). */
+export function vizModeFor(deviceReducesMotion: boolean): VizMode {
+  return deviceReducesMotion ? 'reduced' : 'animated';
+}
 export const MOTIFS: readonly Motif[] = ['waves', 'pulses', 'particles', 'forms', 'ambient'];
 
 const MOTIF_FOR_CATEGORY: Record<SoundCategory, Motif> = {

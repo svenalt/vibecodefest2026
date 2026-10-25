@@ -5,9 +5,7 @@ import { View, type LayoutChangeEvent } from 'react-native';
 import type { AudioFeatures } from '../core/types';
 import { usePalette } from '../ui/theme';
 import { UniversePainter } from './universePainter';
-import { VizState, type Motif } from './vizModel';
-
-export type VizMode = 'animated' | 'reduced';
+import { VizState, type Motif, type VizMode } from './vizModel';
 
 interface Props {
   motif: Motif;

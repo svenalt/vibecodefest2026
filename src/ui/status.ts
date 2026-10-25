@@ -75,12 +75,19 @@ export function soundSummary(mic: MicKind, current: Current, hasPrediction: bool
   };
 }
 
+/** Immersive presentations: the artwork alone, or the artwork with the live sound card. */
+export type Presentation = 'art' | 'sounds';
+
 /**
- * Identity of a real detection for immersive captions. A new key means a newly confirmed
- * category (or the same one re-detected after it lapsed); silence, unknown and a stopped
- * microphone never produce one, so captions cannot be fabricated.
+ * The card shown over the immersive artwork, or null in Pure Art. In Art + Sounds it is always
+ * present and always current: the confirmed sound while the microphone is on, otherwise the
+ * truthful listening status, so a past detection can never linger on screen.
  */
-export function captionKey(listening: boolean, current: Current): string | null {
-  if (!listening || current.kind !== 'event') return null;
-  return `${current.category}@${current.sinceMs}`;
+export function immersiveCard(
+  presentation: Presentation,
+  mic: MicKind,
+  current: Current,
+  hasPrediction: boolean,
+): SoundSummary | null {
+  return presentation === 'sounds' ? soundSummary(mic, current, hasPrediction) : null;
 }

@@ -25,19 +25,14 @@ function memoryKv(initial?: string): KeyValueStore & { data: Map<string, string>
 }
 
 describe('parsePreferences', () => {
-  it('a clean first install gets Dark, follow-device motion, auto-listen and haptics off', () => {
+  it('a clean first install gets Dark, auto-listen and haptics off, and no motion choice', () => {
     expect(parsePreferences(null)).toEqual({ prefs: DEFAULT_PREFERENCES, source: 'fresh' });
-    expect(DEFAULT_PREFERENCES).toEqual({ theme: 'dark', viz: null, listening: true, hapticAlerts: false });
+    expect(DEFAULT_PREFERENCES).toEqual({ theme: 'dark', listening: true, hapticAlerts: false });
   });
 
   it('round-trips every field', () => {
-    const prefs = { theme: 'light', viz: 'off', listening: false, hapticAlerts: true } as const;
+    const prefs = { theme: 'light', listening: false, hapticAlerts: true } as const;
     expect(parsePreferences(serializePreferences(prefs))).toEqual({ prefs, source: 'stored' });
-  });
-
-  it('keeps viz = null (follow the device) instead of an effective value', () => {
-    const prefs = { ...DEFAULT_PREFERENCES, viz: null };
-    expect(parsePreferences(serializePreferences(prefs)).prefs.viz).toBeNull();
   });
 
   it.each(['{not json', '"text"', '42', 'null', '[]', '{"v":2,"listening":true}', '{"listening":true}'])(
@@ -52,36 +47,69 @@ describe('parsePreferences', () => {
 
   it('falls back per field, and an invalid listening value means off', () => {
     const { prefs, source } = parsePreferences(
-      JSON.stringify({ v: 1, theme: 'sepia', viz: 'wild', listening: 'yes', hapticAlerts: 1 }),
+      JSON.stringify({ v: 1, theme: 'sepia', listening: 'yes', hapticAlerts: 1 }),
     );
     expect(source).toBe('recovered');
-    expect(prefs).toEqual({ theme: 'dark', viz: null, listening: false, hapticAlerts: false });
+    expect(prefs).toEqual({ theme: 'dark', listening: false, hapticAlerts: false });
   });
 
   it('keeps valid fields next to an invalid one', () => {
-    const { prefs } = parsePreferences(JSON.stringify({ v: 1, theme: 'light', viz: 'reduced', listening: true }));
-    expect(prefs).toEqual({ theme: 'light', viz: 'reduced', listening: true, hapticAlerts: false });
+    const { prefs } = parsePreferences(JSON.stringify({ v: 1, theme: 'light', listening: true }));
+    expect(prefs).toEqual({ theme: 'light', listening: true, hapticAlerts: false });
+  });
+});
+
+/** REQ-010: preferences saved by REQ-004..008 builds still carry the retired Motion choice. */
+describe('legacy viz preference', () => {
+  const legacy = (viz: unknown, rest: Record<string, unknown> = {}) =>
+    JSON.stringify({ v: 1, theme: 'light', viz, listening: false, hapticAlerts: true, ...rest });
+
+  it.each(['off', 'animated', 'reduced', null, 'wild', 7])('viz = %j is ignored and keeps every other choice', (viz) => {
+    const { prefs, source } = parsePreferences(legacy(viz));
+    expect(source).toBe('stored');
+    expect(prefs).toEqual({ theme: 'light', listening: false, hapticAlerts: true });
+    expect(prefs).not.toHaveProperty('viz');
+  });
+
+  it('a deliberate Stop saved next to viz = off stays stopped', () => {
+    expect(parsePreferences(legacy('off')).prefs.listening).toBe(false);
+    expect(parsePreferences(legacy('off', { listening: true })).prefs.listening).toBe(true);
+  });
+
+  it('is dropped on the next write without touching listening, theme or haptics', async () => {
+    const kv = memoryKv(legacy('off'));
+    const s1 = new PreferencesStore(kv);
+    expect(await s1.hydrate()).toBe('stored');
+    expect(kv.writes).toHaveLength(0); // hydrating alone never rewrites storage
+    s1.update({ theme: 'dark' });
+    await s1.flush();
+    const written = JSON.parse(kv.data.get(PREFERENCES_KEY)!);
+    expect(written).toEqual({ v: 1, theme: 'dark', listening: false, hapticAlerts: true });
+
+    const s2 = new PreferencesStore(kv);
+    expect(await s2.hydrate()).toBe('stored');
+    expect(s2.get()).toEqual({ theme: 'dark', listening: false, hapticAlerts: true });
   });
 });
 
 describe('PreferencesStore', () => {
-  it('Theme and Motion survive two successive restarts', async () => {
+  it('Theme and listening intent survive two successive restarts', async () => {
     const kv = memoryKv();
     const s1 = new PreferencesStore(kv);
     expect(await s1.hydrate()).toBe('fresh');
     s1.update({ theme: 'light' });
-    s1.update({ viz: 'off' });
+    s1.update({ listening: false });
     await s1.flush();
 
     const s2 = new PreferencesStore(kv);
     expect(await s2.hydrate()).toBe('stored');
-    expect(s2.get()).toMatchObject({ theme: 'light', viz: 'off' });
-    s2.update({ viz: null });
+    expect(s2.get()).toMatchObject({ theme: 'light', listening: false });
+    s2.update({ hapticAlerts: true });
     await s2.flush();
 
     const s3 = new PreferencesStore(kv);
     await s3.hydrate();
-    expect(s3.get()).toEqual({ ...DEFAULT_PREFERENCES, theme: 'light', viz: null });
+    expect(s3.get()).toEqual({ theme: 'light', listening: false, hapticAlerts: true });
   });
 
   it('applies changes in memory at once and writes them in order', async () => {

@@ -16,12 +16,10 @@ import { CATEGORY_DISPLAY } from '../core/yamnet/taxonomy';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import { useSoundSession } from '../hooks/useSoundSession';
 import { HAPTICS_SUPPORTED, playEventHaptic } from '../native/haptics';
+import { vizModeFor, type VizMode } from '../viz/vizModel';
 import { HapticCueGate } from './hapticCue';
-import type { VizChoice } from './preferences';
 import { usePreferences } from './PreferencesProvider';
 import { HAPTIC_ALERTS_AVAILABLE } from './release';
-
-export type { VizChoice } from './preferences';
 
 interface SessionValue {
   session: SoundSession;
@@ -32,10 +30,8 @@ interface SessionValue {
   /** Listening is on or being turned on, so the control offers Stop. */
   listeningOn: boolean;
   toggleListening: () => void;
-  vizChoice: VizChoice | null;
-  setVizChoice: (v: VizChoice) => void;
-  effectiveViz: VizChoice;
-  deviceReducesMotion: boolean;
+  /** Follows the device's Reduce Motion setting; there is no user-facing choice. */
+  effectiveViz: VizMode;
   /** Whether this build offers the opt-in haptic cue at all. */
   hapticsAvailable: boolean;
   hapticAlerts: boolean;
@@ -49,8 +45,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { prefs, update } = usePreferences();
   const persistListening = useCallback((listening: boolean) => update({ listening }), [update]);
   const { session, controller, snapshot, intent, getFeatures } = useSoundSession(prefs.listening, persistListening);
-  const deviceReducesMotion = useReduceMotion();
-  const vizChoice = prefs.viz; // null = follow the device
+  const effectiveViz = vizModeFor(useReduceMotion());
 
   const status = snapshot.capture.status;
   const listening = status === 'listening';
@@ -87,8 +82,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (hapticGate.observe(latestEventId, hapticAlerts && listening, Date.now())) playEventHaptic();
   }, [hapticGate, latestEventId, hapticAlerts, listening]);
 
-  const effectiveViz: VizChoice = vizChoice ?? (deviceReducesMotion ? 'reduced' : 'animated');
-  const setVizChoice = useCallback((viz: VizChoice) => update({ viz }), [update]);
   const setHapticAlerts = useCallback((on: boolean) => update({ hapticAlerts: on }), [update]);
 
   const value = useMemo<SessionValue>(
@@ -99,10 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       busy,
       listeningOn,
       toggleListening,
-      vizChoice,
-      setVizChoice,
       effectiveViz,
-      deviceReducesMotion,
       hapticsAvailable,
       hapticAlerts,
       setHapticAlerts,
@@ -114,10 +104,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       busy,
       listeningOn,
       toggleListening,
-      vizChoice,
-      setVizChoice,
       effectiveViz,
-      deviceReducesMotion,
       hapticsAvailable,
       hapticAlerts,
       setHapticAlerts,

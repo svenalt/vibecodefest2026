@@ -22,25 +22,23 @@ describe('navigation', () => {
     }
   });
 
-  it('enters immersion only from Live with the artwork on', () => {
-    expect(run({ type: 'enterImmersive', vizOn: true }).immersive).toBe(true);
-    expect(run({ type: 'enterImmersive', vizOn: false }).immersive).toBe(false);
-    expect(run({ type: 'openSettings' }, { type: 'enterImmersive', vizOn: true })).toEqual({
+  it('enters immersion only from Live', () => {
+    expect(run({ type: 'enterImmersive' }).immersive).toBe(true);
+    expect(run({ type: 'openSettings' }, { type: 'enterImmersive' })).toEqual({
       screen: 'settings',
       immersive: false,
     });
   });
 
   it('leaves immersion first on back, then stays on Live', () => {
-    const immersed = run({ type: 'enterImmersive', vizOn: true });
+    const immersed = run({ type: 'enterImmersive' });
     expect(handlesBack(immersed)).toBe(true);
     const out = navReducer(immersed, { type: 'back' });
     expect(out).toEqual(INITIAL_NAV);
     expect(handlesBack(out)).toBe(false);
   });
 
-  it('exits immersion via the button or when the visualization is turned off', () => {
-    expect(run({ type: 'enterImmersive', vizOn: true }, { type: 'exitImmersive' })).toEqual(INITIAL_NAV);
-    expect(run({ type: 'enterImmersive', vizOn: true }, { type: 'vizOff' })).toEqual(INITIAL_NAV);
+  it('exits immersion via the button', () => {
+    expect(run({ type: 'enterImmersive' }, { type: 'exitImmersive' })).toEqual(INITIAL_NAV);
   });
 });
