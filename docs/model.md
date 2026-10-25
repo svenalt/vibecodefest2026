@@ -29,9 +29,12 @@ How the contract is checked:
 
 ## Licence
 
-- The YAMNet code in `tensorflow/models` is Apache-2.0.
-- The pinned `.tflite` file embeds this licence text in its own metadata: "Apache License. Version 2.0 http://www.apache.org/licenses/LICENSE-2.0. Copyright 2022 Google LLC."
-- **Not independently confirmed:** the Kaggle model page could not be read from this environment (it renders no licence text without JavaScript), and the YAMNet README states no licence. Before any public distribution, open the Kaggle page above and confirm the licence shown there for the weights. The model was trained on AudioSet, whose annotations are CC BY 4.0.
+- The YAMNet implementation in `tensorflow/models` is Apache-2.0.
+- The bundled `.tflite` model embeds: "Apache License. Version 2.0 ... Copyright 2022 Google LLC."
+- The [official Google/Kaggle model card](https://www.kaggle.com/models/google/yamnet/tfLite/classification-tflite/1) lists **Apache 2.0** for the TensorFlow Lite classification model, confirming the model-weight licence.
+- The original AudioSet training annotations have separate CC BY 4.0 terms; they are **not included** in this repository.
+
+For redistributed model artifacts retain the attribution and the Apache-2.0 licence text in [LICENSES/Apache-2.0.txt](../LICENSES/Apache-2.0.txt). This model and the upstream labels are not part of the MIT grant for AUVIONA's original source code.
 
 ## Taxonomy
 

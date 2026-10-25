@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="description" content="AUVIONA — Making sound accessible to all. Explore the Live experience: a sound-reactive universe, accessible visual cues and on-device sound recognition in the iOS prototype.">
+  <title>AUVIONA — Making sound accessible to all.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" type="module"></script>
+</head>
+<body>
+  <div class="shell" id="top">
+    <header class="nav wrap">
+      <a class="brand" href="#top" aria-label="AUVIONA home"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>AUVIONA<span class="brand-period">.</span></a>
+      <div class="nav-right"><span class="fest"><span class="fest-dot"></span> VIBE CODE FEST 2026</span><a class="nav-link" href="#about">The concept <span aria-hidden="true">↗</span></a><a class="nav-link" href="#open-source">Open source <span aria-hidden="true">↗</span></a></div>
+    </header>
+    <main>
+      <section class="hero wrap">
+        <div class="hero-content"><p class="eyebrow"><span class="eyebrow-line"></span> AUVIONA · MAKING SOUND ACCESSIBLE TO ALL</p><h1>What if you could<br><em>see sound?</em></h1><p class="hero-desc">Transform everyday sounds into a living work of art. AUVIONA pairs accessible visual cues with a beautiful, sound-reactive universe — so more people can experience the world around them.</p><div class="hero-cta"><a class="button primary" href="#demo">Experience AUVIONA <span aria-hidden="true">↗</span></a><a class="button outline" href="https://github.com/svenalt/vibecodefest2026" target="_blank" rel="noopener noreferrer">View source <span aria-hidden="true">↗</span></a></div></div>
+        <div class="hero-preview" aria-hidden="true"><canvas id="hero-universe"></canvas><div class="hero-preview-top"><span class="preview-pulse"></span> AUVIONA / UNIVERSE</div><div class="hero-preview-bottom"><span>LIVE ARTWORK PREVIEW</span><strong id="hero-scene-title">City sounds</strong></div></div>
+      </section>
+      <section class="demo-section wrap" id="demo">
+        <div class="demo-panel" id="app-shell">
+          <div class="app-header"><div><strong>AUVIONA</strong><p>Making sound accessible to all.</p></div><button class="round-button" id="open-settings" aria-label="Open settings"><span data-icon="gear"></span></button></div>
+          <div id="live-screen" class="live-screen">
+            <section class="soundscape-picker" aria-labelledby="soundscape-title"><div class="soundscape-intro"><div><p class="soundscape-kicker">01 / EXPLORE SOUND</p><h2 id="soundscape-title">Choose your world.</h2><p>Watch familiar sounds transform into art. No microphone or installation required.</p></div><span class="illustrative-tag">ILLUSTRATIVE DEMO · NO LIVE CLASSIFICATION</span></div><div class="soundscape-grid" role="group" aria-label="Choose an example soundscape"><button class="soundscape selected" data-soundscape="city" aria-pressed="true"><span class="soundscape-glyph">◉</span><span><strong>City</strong><small>Voices · bells · people</small></span><span class="soundscape-arrow" aria-hidden="true">↗</span></button><button class="soundscape" data-soundscape="nature" aria-pressed="false"><span class="soundscape-glyph">✳</span><span><strong>Nature</strong><small>Rain · outdoor sounds</small></span><span class="soundscape-arrow" aria-hidden="true">↗</span></button><button class="soundscape" data-soundscape="music" aria-pressed="false"><span class="soundscape-glyph">♫</span><span><strong>Music</strong><small>Rhythm · applause</small></span><span class="soundscape-arrow" aria-hidden="true">↗</span></button></div><p class="soundscape-now" id="soundscape-now">Playing a visual example: City · Speech</p></section>
+            <div class="artwork" id="artwork"><canvas id="universe" aria-hidden="true"></canvas>
+              <button class="round-button enter-art" id="expand-toggle" aria-label="Enter immersive mode"><span data-icon="expand"></span></button>
+              <button class="round-button art-exit" id="art-exit" aria-label="Exit immersive mode"><span data-icon="collapse"></span></button>
+              <div class="notice immersive-notice" id="immersive-notice" role="alert" hidden></div><div class="immersive-bottom"><div id="art-caption" class="art-caption" hidden><strong id="caption-title"></strong><span id="caption-detail"></span></div><button class="caption-button" id="show-caption" hidden>Current sound</button><div class="segmented" role="group" aria-label="Presentation"><button data-presentation="art" aria-pressed="true">Pure Art</button><button data-presentation="sounds" aria-pressed="false">Art + Sounds</button></div></div>
+            </div>
+            <div id="viz-off" class="viz-off" hidden>The artwork is turned off. You can turn it back on in Settings under Visualization.</div>
+            <div class="sound-tile" aria-live="polite" aria-atomic="true"><span class="sound-well" id="current-icon" data-icon="ambient"></span><div><strong id="sound-title">Ready to explore</strong><p id="sound-detail">Choose an example sound below, or open Settings to start listening.</p></div><span class="example-badge" id="source-badge">PREVIEW</span></div>
+            <button class="settings-link" id="start-link"><span data-icon="mic"></span> Open Settings to start listening <span aria-hidden="true">↗</span></button>
+            <div class="notice" id="live-notice" role="alert" hidden></div>
+            <section class="recent-section" aria-labelledby="recent-heading"><div class="recent-heading"><h3 id="recent-heading">Recent sounds <span>Examples</span></h3><button class="text-button" id="show-all" hidden>Show all</button></div><p id="recent-empty">Your selected example sounds appear here. Kept in memory for this session only.</p><ol id="recent-list"></ol></section>
+            <details class="examples" open><summary>Try an example sound <span>Illustrative scenes</span></summary><p>Explore the app’s visual language. These examples are not microphone detections.</p><div class="scene-choices" id="scene-choices" role="group" aria-label="Example soundscapes"><button class="scene selected" data-scene="ambient" aria-pressed="true"><span data-icon="ambient"></span> Ambient</button><button class="scene" data-scene="speech" aria-pressed="false"><span data-icon="speech"></span> Speech</button><button class="scene" data-scene="rain" aria-pressed="false"><span data-icon="rain"></span> Rain</button><button class="scene" data-scene="music" aria-pressed="false"><span data-icon="music"></span> Music</button><button class="scene" data-scene="bell" aria-pressed="false"><span data-icon="bell"></span> Bell</button><button class="scene" data-scene="dog_bark" aria-pressed="false"><span data-icon="dog"></span> Dog bark</button><button class="scene" data-scene="applause" aria-pressed="false"><span data-icon="applause"></span> Applause</button></div></details>
+          </div>
+          <section id="settings-screen" class="settings-screen" aria-labelledby="settings-title" hidden>
+            <button class="text-button back-button" id="back-live"><span data-icon="back"></span> Back to Live</button><h2 id="settings-title" tabindex="-1">Settings</h2>
+            <div class="settings-grid">
+              <section class="settings-group"><h3><span data-icon="mic"></span> Listening</h3><div class="settings-card"><p class="mic-status" id="mic-status" role="status"><span></span> Microphone off</p><button class="button primary" id="mic-toggle">Start listening</button><p>Audio reacts to loudness and tone in this browser. No audio is recorded, stored or uploaded.</p><div class="notice" id="mic-notice" role="alert" hidden></div></div></section>
+              <section class="settings-group"><h3><span data-icon="appearance"></span> Appearance</h3><div class="settings-card"><label>Theme</label><div class="segmented" role="group" aria-label="Theme"><button data-theme="dark" aria-pressed="true">Dark</button><button data-theme="light" aria-pressed="false">Light</button></div></div></section>
+              <section class="settings-group"><h3><span data-icon="ambient"></span> Visualization</h3><div class="settings-card"><label>Motion</label><div class="segmented" role="group" aria-label="Motion"><button data-motion="animated" aria-pressed="true">Animated</button><button data-motion="reduced" aria-pressed="false">Reduced</button><button data-motion="off" aria-pressed="false">Off</button></div><p>Reduced shows a still artwork. Off hides the artwork and immersive mode.</p><p id="reduce-note" hidden>Your device’s Reduce Motion preference is active.</p></div></section>
+              <section class="settings-group"><h3><span data-icon="info"></span> About this demo</h3><div class="settings-card"><p>The iOS prototype recognizes sounds on-device with YAMNet. This browser demo visualizes acoustic features only; it does not classify sounds. Android support is planned.</p><p>AUVIONA is experimental. Do not rely on it for safety, emergencies, navigation or medical decisions.</p><p>Listening starts after you tap Start listening and allow access. It stops when you leave this page.</p></div></section>
+            </div>
+          </section>
+          <p class="web-note"><strong>Interactive web demo.</strong> Microphone mode visualizes sound energy; example labels are illustrative. On-device sound recognition is available in the iOS prototype.</p>
+        </div>
+        <div class="demo-foot"><span>ONE LIVE EXPERIENCE. YOUR SOUND, MADE VISIBLE.</span><span>SCROLL TO DISCOVER&nbsp; ↓</span></div>
+      </section>
+      <section class="about wrap" id="about"><div class="about-head"><span class="section-tag">02 / THE IDEA</span><h2>More than sound recognition.<br><em>A visual language.</em></h2></div><div class="cards"><article class="card"><span class="card-index">01 / AWARENESS</span><div class="card-art awareness" aria-hidden="true"><span></span><span></span><span></span><b>✦</b></div><h3>Awareness, made visible.</h3><p>AUVIONA explores how meaningful visual cues can make the sounds around us more accessible — including for people with hearing impairments.</p></article><article class="card"><span class="card-index">02 / ART</span><div class="card-art creativity" aria-hidden="true"><span></span><span></span><span></span><span></span><b>✧</b></div><h3>Science meets art.</h3><p>The app’s Universe V2 brings sound to life: flowing ribbons for speech, delicate particles for rain, and glowing forms for music. Expand the artwork into Pure Art or Art + Sounds.</p></article><article class="card"><span class="card-index">03 / PRIVACY</span><div class="card-art privacy" aria-hidden="true"><b>ON<br>DEVICE</b><span>⌁</span></div><h3>Private by design.</h3><p>In the native iOS prototype, audio recognition happens on the device. No account, cloud audio processing or recording is needed for the live experience.</p></article></div></section>
+      <section class="open-source wrap" id="open-source" aria-labelledby="open-source-title">
+        <div class="open-source-copy">
+          <span class="section-tag">03 / BUILT IN THE OPEN</span>
+          <h2 id="open-source-title">Open source.<br><em>Open possibilities.</em></h2>
+          <p>AUVIONA began as a Vibe Code Fest experiment. Now its source code is available under the MIT License, so anyone can explore it, learn from it, and help make sound more accessible.</p>
+          <div class="open-source-actions">
+            <a class="button primary" href="https://github.com/svenalt/vibecodefest2026" target="_blank" rel="noopener noreferrer">Explore on GitHub <span aria-hidden="true">↗</span></a>
+            <a class="button outline" href="https://github.com/svenalt/vibecodefest2026/issues" target="_blank" rel="noopener noreferrer">Report an issue <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="open-source-meta">MIT-licensed project code · Third-party model licenses retained · <a href="https://github.com/svenalt/vibecodefest2026/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contribution guide ↗</a></p>
+        </div>
+        <div class="open-source-aside" aria-label="Project status">
+          <span class="open-source-mark" aria-hidden="true">{ }</span>
+          <span class="aside-kicker">THE PROJECT</span>
+          <strong>Built to explore.<br>Open to improve.</strong>
+          <p>iOS prototype in development.<br>Android support is not available yet.<br>This browser demo is illustrative.</p>
+        </div>
+      </section>
+      <section class="closing wrap"><div class="closing-glow" aria-hidden="true"></div><div class="closing-copy"><span class="section-tag">04 / THE VISION</span><h2>Make the invisible <em>beautiful.</em></h2><p>Sound isn't only something we hear. It can be something we see, feel and experience together.</p><a href="#demo" class="button primary">Explore the universe again&nbsp; ↑</a></div><div class="closing-symbol" aria-hidden="true">✳</div></section>
+    </main>
+    <footer class="footer wrap"><a class="brand" href="#top"><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span>AUVIONA<span class="brand-period">.</span></a><span>Making sound accessible to all.</span><span>Made for Vibe Code Fest Basel · 2026</span></footer>
+  </div>
+</body>
+</html>

@@ -1,14 +1,31 @@
 # AUVIONA
 
-*Making sound accessible to all.*
+**Making sound accessible to all.**
 
-An iOS app (Android planned) that listens through the microphone while it is open and listening is on, and shows what it hears as readable text, an icon, a short session history and live generative artwork. Everything runs on the device with Google's YAMNet model. No audio is recorded, stored or uploaded, and there are no accounts, analytics or cloud services.
+AUVIONA explores how everyday sounds can become accessible visual cues and living generative art. The iOS app listens through the microphone while it is open and listening is on, and shows what it hears as readable text, an icon, a short session history and live generative artwork. Everything runs on the device with Google's YAMNet model. No audio is recorded, stored or uploaded, and there are no accounts, analytics or cloud services. The interactive web demo lets anyone explore its visual language.
 
-**Not a safety system.** It is for art and general sound awareness. Do not rely on it for emergencies, alarms, safety-critical decisions, navigation or medical decisions.
+**[Try the interactive web demo](https://sonora-vibecodefest-2026.swiftmule128.chatgpt.site)** · [Contribute](CONTRIBUTING.md) · [Open an issue](https://github.com/svenalt/vibecodefest2026/issues) · [Web demo source](web-demo/)
 
-Status: AUVIONA 1.0 release hardening (REQ-008). The code is unit-tested, but the app has **not yet been built or run on an iPhone**, and it is **not approved for App Store submission**. See `docs/release/auviona-release-checklist.md` for the release gates and what is blocked, and `docs/implementation-notes.md` for what is and is not verified. Android has a design (`docs/android-adapter.md`) but no native adapter, so there is no Android release.
+Originally created for **Vibe Code Fest Basel 2026**. Earlier working names were SoundCanvas and SONORA. They survive only in internal identifiers (the `soundcanvas-audio` native module, the `SoundCanvasAudio` pod, the npm package name) and in historical requirement documents.
 
-Earlier working names were SoundCanvas and SONORA. They survive only in internal identifiers (the `soundcanvas-audio` native module, the `SoundCanvasAudio` pod, the npm package name) and in historical requirement documents.
+## What it does
+
+- Turns recognized sounds into readable labels, icons and a sound-reactive **Universe** artwork.
+- Uses adaptive animation, light/dark appearance, and a distraction-free immersive mode.
+- Runs audio recognition on-device in the **iOS app**; no accounts, analytics, audio recordings or audio uploads.
+- Provides a **web demo** with illustrative City, Nature and Music soundscapes and optional microphone-reactive visualization. The browser demo **does not classify sounds**.
+
+## Project status
+
+AUVIONA 1.0 is in release hardening (REQ-008). It is not yet an App Store release, and it is not a safety tool.
+
+| Platform | Status |
+| --- | --- |
+| iOS | Native on-device YAMNet audio pipeline and shared UI implemented and unit-tested. **Not yet built or run on an iPhone** and **not approved for App Store submission**; see [docs/release/auviona-release-checklist.md](docs/release/auviona-release-checklist.md) for the release gates and [docs/implementation-notes.md](docs/implementation-notes.md) for what is and is not verified. |
+| Android | Shared UI exists, but the native Kotlin microphone/YAMNet adapter is not implemented yet ([design](docs/android-adapter.md)). **Not supported currently.** |
+| Web | Public interactive visualization demo; its example labels are illustrative, not live detections. |
+
+**Not a safety system.** It is for art and general sound awareness. Do **not** rely on AUVIONA for emergencies, alarms, safety-critical decisions, navigation, or medical decisions.
 
 ## How it fits together
 
@@ -24,7 +41,8 @@ Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (Kotlin, planned) --+-> s
 - `src/native/`: the bridge to the native module and the only place that checks the platform.
 - `src/ui/`, `src/viz/`, `src/hooks/`: the screen, the Skia scene and its state model, and React hooks.
 - `modules/soundcanvas-audio/ios/`: the Swift Expo module (capture, resampling, windowing, features, YAMNet).
-- `assets/model/`: the pinned model and label map. See `docs/model.md`.
+- `assets/model/`: the pinned model and label map. See [docs/model.md](docs/model.md) for origin, checksums and licensing.
+- `web-demo/`: the browser visualization demo (no sound classification).
 - `site/`: drafts of the public Privacy Policy and Support pages (not published yet).
 - `docs/release/`: release checklist and App Store metadata draft.
 
@@ -57,7 +75,7 @@ If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install fir
 
 ## Android (planned)
 
-The same app and shared code target Android. The Kotlin YAMNet adapter is not written yet; the design, dependency choice and permission handling are in `docs/android-adapter.md`. Until then the Android build shows a clear "adapter not implemented" message when it tries to start listening. `RECORD_AUDIO` is already declared in `app.json`.
+The same app and shared code target Android. The Kotlin YAMNet adapter is not written yet; the design, dependency choice and permission handling are in [docs/android-adapter.md](docs/android-adapter.md). Until then the Android build shows a clear "adapter not implemented" message when it tries to start listening. `RECORD_AUDIO` is already declared in `app.json`.
 
 ## Permissions and privacy
 
@@ -66,6 +84,7 @@ The same app and shared code target Android. The Kotlin YAMNet adapter is not wr
 - Capture is foreground only and stops when you leave the app, unmount the screen, or the audio is interrupted. None of these changes the listening choice. While it is on, the screen says so in text.
 - Audio stays in memory long enough to be analysed. Nothing is written to disk or sent anywhere. The history list is in memory and clears when you start a new session. The only thing stored is a small preferences entry (theme, motion, listening on/off, haptic alerts).
 - Logs and diagnostics contain technical state and model labels only.
+- The web demo can request microphone permission to drive its visualization, but does not transmit audio or perform sound classification.
 
 ## Scripts
 
@@ -76,3 +95,11 @@ The same app and shared code target Android. The Kotlin YAMNet adapter is not wr
 | `npm run verify-model` | Verifies `assets/model/*` against the pinned hashes |
 | `npm run gen-labels` | Regenerates `src/core/yamnet/labels.ts` from the label CSV |
 | `npm run ios` / `npm run android` | `expo run:ios` / `expo run:android` |
+
+## Open source and contributions
+
+**AUVIONA's original source code is released under the [MIT License](LICENSE).** Bundled third-party model files, label data and dependencies retain their respective upstream licenses; see [third-party notices](THIRD_PARTY_NOTICES.md) and [model documentation](docs/model.md).
+
+Issues and small pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the quick workflow and areas to help, including Android support and accessibility testing.
+
+The MIT license grants permissions for code, **not permission to claim endorsement or use the AUVIONA name or logo as branding for another product**. AUVIONA's project identity is maintained by the project owner.
