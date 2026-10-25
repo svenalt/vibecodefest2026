@@ -26,6 +26,7 @@ How the contract is checked:
 - Automated (`src/core/yamnet/yamnet.test.ts`): the bundled label list equals the CSV in count and order; every taxonomy entry's index carries the expected label.
 - Offline, done once: the 521 labels embedded in the `.tflite` metadata matched the CSV, in order, with no mismatches.
 - At runtime, on every result (`src/core/normalize.ts`): the class count must be 521, and every returned `(index, label)` pair must equal the pinned label at that index. A mismatch stops capture and shows an error instead of guessing.
+- Android, natively, before anything reaches JS (`modules/soundcanvas-audio/android/.../YamnetContract.kt`): the model file's SHA-256 and the packaged label CSV's SHA-256 must equal the pins above; all classes MediaPipe returns are audited (exactly 521, each index once, label equal to the CSV, finite score) before the top 10 are selected, both on a silent warm-up window at start and on every result. `src/native/nativePins.test.ts` keeps the Kotlin pins equal to `scripts/verify-model.mjs`.
 
 ## Licence
 

@@ -62,7 +62,7 @@ Source-level audit (2026-10-25). It still has to be confirmed against the final 
 | `expo-constants` | yes | UserDefaults CA92.1 |
 | `expo-file-system` (via `expo`/`expo-asset`) | yes | FileTimestamp 0A2A.1, 3B52.1; DiskSpace E174.1, 85F4.1 |
 | `expo-haptics`, `expo-asset`, `expo-modules-core`, `@shopify/react-native-skia` | none found | **to check** in the built archive |
-| `MediaPipeTasksAudio` / `MediaPipeTasksCommon` 1.0.0 | unknown (binary pod) | **to check**: manifest, signature, and any network or telemetry symbols in the binary |
+| `MediaPipeTasksAudio` / `MediaPipeTasksCommon` 1.0.0 | unknown (binary pod) | **to check**: manifest, signature, and any network or telemetry symbols in the binary. **Raised priority (REQ-009):** the Android `tasks-core` 1.0.0 contains a remote usage-stats logger (`RemoteLoggingClient`, Google datatransport/CCT: task name, app package and version, latencies). Android disables it (`modules/soundcanvas-audio/android/src/noTelemetry/`); check whether the iOS binary has an equivalent before answering "Data Not Collected". |
 | `expo-dev-client` / `expo-dev-launcher` / `expo-dev-menu` | — | `debugOnly`; must be absent from the Release archive (verify) |
 
 - **App-level `PrivacyInfo.xcprivacy`** is produced by React Native's privacy-manifest aggregation during `pod install` (enabled by default in the generated Podfile). It was not generated here because CocoaPods does not run on this Mac. After `pod install`, inspect `ios/AUVIONA/PrivacyInfo.xcprivacy` and the archive; add `ios.privacyManifests` to `app.json` only for APIs the audit actually finds uncovered.

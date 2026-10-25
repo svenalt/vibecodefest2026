@@ -7,7 +7,7 @@ Thanks for helping make sound more accessible. This project is early-stage, so p
 3. Run `npm run typecheck` and `npm test`; include a short description of any physical-device testing.
 4. Open a pull request explaining the behavior before/after and any limitations.
 
-Good first areas: accessibility and reduced-motion checks, iOS device verification, documentation, and the [planned Android adapter](docs/android-adapter.md).
+Good first areas: accessibility and reduced-motion checks, iOS device verification, documentation, and Android device validation of the [Kotlin adapter](docs/android-adapter.md).
 
 Please do not post raw microphone recordings, private data, credentials or identifiable user information in issues or pull requests.
 

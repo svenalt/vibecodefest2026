@@ -1,49 +1,91 @@
-# Android YAMNet adapter design (not implemented)
+# Android YAMNet adapter (REQ-009)
 
-Status: specified for REQ-001, **not built and not tested on any Android device.** Android audio classification must not be described as working until YAMNet runs on a physical Android device.
+Status: **implemented, native debug build passes, NOT validated on any Android device.** Android audio classification must not be described as working, and Android must not be called "supported", until the physical-device gates below pass. Google Play release readiness is a separate gate and is not granted here.
 
-Android is a second platform adapter, not a different architecture. It reuses the model, label map, taxonomy, tracker, session, UI and visualization unchanged.
+Android is a second platform adapter, not a different architecture. It reuses the model, label map, taxonomy, tracker, session, listening-intent controller, UI and visualization unchanged. The only Android-specific TypeScript is one branch in `src/native/createSoundInput.ts`.
 
 ## What is shared
 
-- The model file `assets/model/yamnet.tflite` and `yamnet_class_map.csv` (identical bytes, same hashes, see `model.md`).
-- The TypeScript contract in `src/core/types.ts` (`SoundInput`, `RawClassification`, `AudioFeatures`, `CaptureState`) and everything above it.
-- The native module name and surface used by `src/native/nativeSoundInput.ts`: `getPermissionStatus()`, `requestPermission()`, `start(modelPath)`, `stop()`, and events `onState`, `onClassification`, `onFeatures`, `onError` with the same payload shapes as the Swift module.
+- The model `assets/model/yamnet.tflite` and `yamnet_class_map.csv` (same bytes and hashes, see `model.md`). Android does not get a copy of the model: `expo-asset` delivers it, and Gradle packages only the label CSV as a module asset.
+- The TypeScript contract in `src/core/types.ts` and `NativeSoundInput` in `src/native/nativeSoundInput.ts`: `getPermissionStatus()`, `requestPermission()`, `start(modelPath)`, `stop()`, events `onState`, `onClassification`, `onFeatures`, `onError`, with the same payloads as the Swift module.
 
-## What Android has to build
+## Files
 
-A Kotlin Expo module named `SoundCanvasAudio`, in `modules/soundcanvas-audio/android/`, plus `"android"` added to `platforms` in `expo-module.config.json`.
+`modules/soundcanvas-audio/android/` (autolinked through `expo-module.config.json`, `android.modules = ["app.soundcanvas.audio.SoundCanvasAudioModule"]`):
 
-| Concern | iOS (built) | Android (planned) |
+| File | Role |
+| --- | --- |
+| `SoundCanvasAudioModule.kt` | Expo module `SoundCanvasAudio` (classic `ModuleDefinition` DSL, like the Swift module): permissions, start/stop, events, lifecycle hooks |
+| `AudioPipeline.kt` | Lifecycle thread, session epochs, capture thread, inference thread, interruptions, teardown |
+| `MicrophoneCapture.kt` | `AudioRecord` source/format negotiation and reads |
+| `AnalysisConverter.kt` | PCM16/float, any rate and channel count -> 16 kHz mono float32 (downmix + windowed-sinc resampler) |
+| `WindowBuffer.kt`, `FeatureExtractor.kt` | Ports of the Swift files (same constants and Float math) |
+| `PipelineParts.kt` | `AnalysisStream` (one clock for features and windows), `InferenceSlot` (one in flight, drop extras), `SessionGate` (epochs), model hashing |
+| `YamnetContract.kt` | Constants, pinned hashes, label CSV parser, 521-class audit |
+| `YamnetClassifier.kt` | MediaPipe Tasks Audio wrapper |
+| `src/noTelemetry/` | Release-only no-op stand-ins that disable MediaPipe's usage-stats upload (see below) |
+| `src/test/` | JVM unit tests for everything above that does not need Android |
+
+## Pipeline
+
+| Concern | iOS (Swift) | Android (Kotlin) |
 | --- | --- | --- |
-| Inference | MediaPipe Tasks Audio (`MediaPipeTasksAudio` pod 1.0.0), audio-clips mode | MediaPipe Tasks Audio (`com.google.mediapipe:tasks-audio`), `RunningMode.AUDIO_CLIPS`. Google Maven lists 1.1.1 as latest; pin one version and re-check the I/O contract. |
-| Capture | `AVAudioEngine` input tap | `AudioRecord` (`AudioSource.UNPROCESSED` if supported, else `MIC`), `ENCODING_PCM_FLOAT`, mono |
-| Resampling | `AVAudioConverter` to 16 kHz mono | Request 16 kHz mono directly from `AudioRecord`. If the device refuses it, capture at the hardware rate and resample natively (linear or polyphase) before the shared buffering. |
-| Windowing | 15,600-sample window, 7,800-sample hop, one inference in flight, extra windows dropped | Identical logic (port `WindowBuffer`) |
-| Features | RMS, peak, 3-band energies every 50 ms | Identical (port `FeatureExtractor`; same one-pole filter coefficients) |
-| Threads | tap thread, processing queue, inference queue | one read thread feeding a processing executor and a single-thread inference executor |
-| Permission | `AVAudioApplication` / `AVAudioSession` | `RECORD_AUDIO` runtime permission via the Expo permissions API. `app.json` already declares it. |
-| Foreground only | `OnAppEntersBackground` stops capture | `OnActivityEntersBackground` stops capture. No foreground service, no background recording. |
-| Interruptions | session interruption and route-change notifications | `AudioManager` focus loss and device-change callbacks, reported through `onError` |
-| Cleanup | `removeTap`, `engine.stop`, session deactivate, classifier released | `AudioRecord.stop/release`, classifier `close()`, executors shut down |
-| Offline | model passed as a local file path | same: `modelPath` from `expo-asset`; load with `BaseOptions.setModelAssetPath`. No network fallback. |
+| Inference | `MediaPipeTasksAudio` 1.0.0, audio-clips mode, `maxResults = -1`, `scoreThreshold = 0` | `com.google.mediapipe:tasks-audio:1.0.0`, `RunningMode.AUDIO_CLIPS`, `maxResults` **unset** (the Android builder rejects values <= 0; unset returns every class), `scoreThreshold = 0f` so model metadata cannot filter |
+| Model loading | `modelAssetPath` = file path | The file `expo-asset` put in the app cache is memory-mapped and passed with `setModelAssetBuffer`. `setModelAssetPath` takes an APK asset name, not a file path. The SHA-256 is checked against the pin first. |
+| Capture | `AVAudioEngine` tap, `.measurement` mode | One `AudioRecord`. Source: `UNPROCESSED` if the device declares support, else `VOICE_RECOGNITION` (no NS/AGC by default per CDD), else `MIC`. Format: 16 kHz mono float, then 16 kHz PCM16, then 48/44.1 kHz mono, then stereo. Every candidate is re-read after construction (`sampleRate`, `channelCount`, `audioFormat`) and rejected if it differs. |
+| Conversion | `AVAudioConverter` | Channels averaged; PCM16 / 32768; non-finite samples -> 0; Kaiser-windowed sinc resampler (cutoff 47% of 16 kHz, flat to ~6.9 kHz, ~80 dB from ~8.1 kHz), exact rational position so 15-minute sessions do not drift and chunking does not change the output |
+| Windowing | 15,600 window, 7,800 hop, one inference in flight, extras dropped | Identical (`WindowBuffer` port, `InferenceSlot`) |
+| Features | RMS, peak, 3-band energies every 800 samples | Identical (`FeatureExtractor` port) |
+| Timestamps | Stream time of the newest sample when the window/feature is handled | Session audio time in ms from the analysed sample count: a window is stamped with its newest sample, a feature frame with its last sample. Monotonic, one clock, reset per session |
+| Threads | tap thread, processing queue, inference queue | lifecycle thread (start/stop in order), capture thread (`URGENT_AUDIO` priority: read + convert + features + windowing), single inference thread, callback `HandlerThread` |
+| Label check | in JS on the top 10 | **Natively on all 521 classes before filtering** (count 521, each index once, label equals the pinned CSV, finite score), then the top 10 sorted by score with ties by index; JS checks again |
+| Label name | `categoryName ?? displayName` | `categoryName`, else `displayName` (same rule) |
+| Start check | none | One silent warm-up inference is audited before `listening` is reported, so a wrong model or label map is a start error, not a listening state |
+| Permission | `AVAudioApplication` | Expo's permission service: `undetermined` until asked once, then `denied` for any refusal (including "don't ask again" and revocation in Settings), `granted`. The shared layer prompts only from `undetermined` and otherwise offers Settings |
+| Foreground only | `OnAppEntersBackground` | `OnActivityEntersBackground` (activity paused) and `OnActivityDestroys` stop capture; `OnDestroy` also ends the lifecycle thread. No foreground service, no background capture |
+| Interruptions | session interruption, engine configuration change | `AudioRecord` routing change (device switched or removed), `AudioRecordingCallback` reporting this client silenced (Android 10+: calls, another app capturing, mic privacy toggle), audio mode `IN_CALL`/`IN_COMMUNICATION` (start check, and a listener on Android 12+), read errors and 2 s without data. Each releases capture and reports through `onError` |
+| Audio focus | n/a (`.record` category) | Not requested. A recorder does not need focus, and requesting it would duck or pause music the user is playing. Calls are caught by the mode and silencing checks instead |
+| Cleanup | remove tap, stop engine, deactivate session | remove listeners, `AudioRecord.stop()` (unblocks the read), join the capture thread, `release()`, close the classifier on the inference thread after any inference in flight, shut down executors and the callback thread |
 
-## Model path on Android
+`stop()` is idempotent and resolves only after the microphone is released. Every event is emitted under the session gate, and teardown closes the gate first, so no feature, classification or haptic-triggering event of a stopped session can be emitted afterwards. A stop that arrives while a start is still loading the model makes that start give up before it opens the microphone. Background stops never touch the persisted listening choice; foreground restart is decided by `ListeningController` in JS, so a deliberate Stop stays stopped.
 
-`src/native/modelAsset.ts` already resolves the bundled asset to a file path through `expo-asset`. In a release build the asset is embedded in the APK; Android's native side must be able to read that file path (otherwise copy it to `cacheDir` once and pass that path).
+Logcat (tag `SoundCanvasAudio`) gets one line when listening starts (source, delivered format, device format, model hash prefix) and one when it stops (inference count, median/P95/max inference time, windows, dropped windows). No audio data is logged.
 
-## Wiring
+## MediaPipe telemetry is disabled in release builds
 
-`src/native/createSoundInput.ts` is the only place that checks the host platform. Today it returns an "unavailable" adapter on Android. Once the Kotlin module exists, return `new NativeSoundInput('android', native, resolveModelPath)` for Android as well.
+Every `tasks-core` version on Google Maven (0.10.14 to 1.1.1) sends usage statistics to Google through `com.google.android.datatransport`: task name and mode, app package and version, latency counters. No audio, but network traffic the privacy policy rules out. There is no API switch, so for release builds `build.gradle` excludes the datatransport group and the release-only source set `src/noTelemetry/` provides no-op versions of the eight types MediaPipe links against. Debug builds keep the real library, because `expo-dev-client`'s ML Kit QR scanner already ships it there and two copies in one APK would load unpredictably; development builds can therefore send MediaPipe telemetry. Details, the upgrade check and how to revert: `modules/soundcanvas-audio/android/src/noTelemetry/README.md`. Whether the iOS pod contains something similar is still an open item in the release checklist.
 
-## Acceptance for the follow-up REQ
+## Build and run
 
-- The Kotlin module compiles in an Expo development build and loads the same `.tflite`.
-- The runtime contract checks pass on device (521 classes, label order).
-- At least three categories demonstrated on a physical Android phone, with first-result and update latency measured and recorded next to the iPhone numbers.
-- Matching weights do not guarantee matching latency or recognition quality; record any differences instead of assuming parity.
-- Add an Android row to the device checklist in `implementation-notes.md`.
+Requirements (as of RN 0.88 / Expo SDK 58): JDK 17 or newer (JDK 21 used), Android SDK with cmdline-tools; AGP installs platform 37, build-tools 37, NDK 27.1 and CMake on the first build once licences are accepted.
 
-## Cross-platform tests that already exist
+```sh
+export JAVA_HOME=<jdk 21> ANDROID_HOME=$HOME/Library/Android/sdk
+npx expo prebuild --platform android --no-install    # generates the gitignored android/
+cd android
+./gradlew :soundcanvas-audio:testDebugUnitTest        # Kotlin unit tests
+./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a
+cd .. && npx expo run:android --device               # development build on a connected device
+```
 
-`src/core/soundSession.test.ts` runs the same speech-then-music scenario through a `FakeSoundInput` impersonating `ios` and `android`, and `src/core/normalize.test.ts` checks that normalization is identical apart from the `platform` field. These guard against iOS-only assumptions leaking into shared code.
+A Metro/JS bundle or `expo export --platform android` is not a native build. After any change under `modules/soundcanvas-audio/android/`, rebuild the development client.
+
+For the offline gate use a release-like build (`./gradlew :app:assembleRelease`, signed with the debug key by the generated project), install it with `adb install`, then enable airplane mode.
+
+## Release builds
+
+Expo's generated project minifies release builds with R8. MediaPipe ships no keep rules, so `consumer-rules.pro` keeps `com.google.mediapipe.**` and protobuf-lite messages (JNI and reflection) and silences exactly the five classes R8 reported missing (AutoValue annotations, two graph-profiling/template protos the classifier never uses). `assembleRelease` passes with them; whether the minified classifier runs is part of the device gates.
+
+## Verification status (2026-10-25, macOS 12.7 x86_64, no device)
+
+| Gate | Status | Evidence |
+| --- | --- | --- |
+| Expo autolinking finds the Kotlin module | **PASS** | `npx expo-modules-autolinking resolve --platform android` lists `soundcanvas-audio` with classifier `app.soundcanvas.audio.SoundCanvasAudioModule` |
+| `expo prebuild --platform android` | **PASS** | |
+| Kotlin unit tests | **PASS** | 39 tests in 7 classes (`:soundcanvas-audio:testDebugUnitTest`) |
+| Full native Gradle debug build | **PASS** | `:app:assembleDebug` (arm64-v8a), 115 MB APK with `libmediapipe_tasks_jni.so` and the class map asset |
+| Release build (R8) | **PASS** | `:app:assembleRelease` (arm64-v8a), 54 MB; embedded model SHA-256 equals the pin; no datatransport artifact on the release classpath and no datatransport components in the release manifest |
+| Instrumented parity test compiles | **PASS** | `:soundcanvas-audio:assembleDebugAndroidTest`; host reference from TensorFlow 2.16.2, fixture inputs byte-identical between JVM and Python |
+| On-device parity, every physical-device gate | **NOT RUN** | No Android device was connected (`adb devices` empty). See `implementation-notes.md` |
+
+Not verified at all: that MediaPipe loads the memory-mapped model on a device, the 521-class count and label names at runtime, any `AudioRecord` behaviour, lifecycle and interruption handling, performance. Treat every one of them as unproven until the device gates pass.

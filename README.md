@@ -22,7 +22,7 @@ AUVIONA 1.0 is in release hardening (REQ-008). It is not yet an App Store releas
 | Platform | Status |
 | --- | --- |
 | iOS | Native on-device YAMNet audio pipeline and shared UI implemented and unit-tested. **Not yet built or run on an iPhone** and **not approved for App Store submission**; see [docs/release/auviona-release-checklist.md](docs/release/auviona-release-checklist.md) for the release gates and [docs/implementation-notes.md](docs/implementation-notes.md) for what is and is not verified. |
-| Android | Shared UI exists, but the native Kotlin microphone/YAMNet adapter is not implemented yet ([design](docs/android-adapter.md)). **Not supported currently.** |
+| Android | Native Kotlin microphone/YAMNet adapter implemented (REQ-009) with unit tests and a full Gradle debug build. **Not yet run on any Android device, so not supported**; see [docs/android-adapter.md](docs/android-adapter.md) for the device gates. |
 | Web | Public interactive visualization demo; its example labels are illustrative, not live detections. |
 
 **Not a safety system.** It is for art and general sound awareness. Do **not** rely on AUVIONA for emergencies, alarms, safety-critical decisions, navigation, or medical decisions.
@@ -31,7 +31,7 @@ AUVIONA 1.0 is in release hardening (REQ-008). It is not yet an App Store releas
 
 ```text
 iOS:     mic -> AVAudioEngine -> 16 kHz mono -> YAMNet (MediaPipe, Swift) -+
-Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (Kotlin, planned) --+-> shared TypeScript
+Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (MediaPipe, Kotlin) +-> shared TypeScript
                                                                            |   mapping, smoothing, cooldown
                                                                            +-> accessible UI + Skia visualization
 ```
@@ -40,7 +40,7 @@ Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (Kotlin, planned) --+-> s
 - `src/app/`: app state above the screens: persisted preferences, session provider, navigation, haptic cue gate, public links and release flags (`release.ts`).
 - `src/native/`: the bridge to the native module and the only place that checks the platform.
 - `src/ui/`, `src/viz/`, `src/hooks/`: the screen, the Skia scene and its state model, and React hooks.
-- `modules/soundcanvas-audio/ios/`: the Swift Expo module (capture, resampling, windowing, features, YAMNet).
+- `modules/soundcanvas-audio/ios/` and `android/`: the Swift and Kotlin halves of one Expo module (capture, resampling, windowing, features, YAMNet).
 - `assets/model/`: the pinned model and label map. See [docs/model.md](docs/model.md) for origin, checksums and licensing.
 - `web-demo/`: the browser visualization demo (no sound classification).
 - `site/`: drafts of the public Privacy Policy and Support pages (not published yet).
@@ -50,7 +50,7 @@ Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (Kotlin, planned) --+-> s
 
 - Node 20+ and npm.
 - For iOS: a Mac with full Xcode (not just Command Line Tools), CocoaPods working, an Apple ID for signing, and an iPhone with Developer Mode on. Expo Go cannot run this app because it needs a custom native module.
-- For Android (later): Android Studio with a recent SDK and a physical device.
+- For Android: JDK 17+ (21 tested), the Android SDK command-line tools with licences accepted (Gradle installs platform 37, NDK 27.1 and CMake on the first build), and a physical device with USB debugging. Android Studio is optional.
 
 ## Setup
 
@@ -73,13 +73,19 @@ On the phone: allow the microphone when the app asks on first launch (listening 
 
 If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install first; the Swift module cannot build without it.
 
-## Android (planned)
+## Run on Android (not yet device-validated)
 
-The same app and shared code target Android. The Kotlin YAMNet adapter is not written yet; the design, dependency choice and permission handling are in [docs/android-adapter.md](docs/android-adapter.md). Until then the Android build shows a clear "adapter not implemented" message when it tries to start listening. `RECORD_AUDIO` is already declared in `app.json`.
+```sh
+npx expo run:android --device
+```
+
+This generates the gitignored `android/` project, builds a development build with the Kotlin module and MediaPipe Tasks Audio 1.0.0, and installs it. Android asks for the microphone like iOS; if it is refused, the app explains why and links to the app's system settings. The diagnostics show the device and analysis format and the model class count, and logcat (`adb logcat -s SoundCanvasAudio`) prints a start and stop summary with inference timings. Record results against the gates in [docs/android-adapter.md](docs/android-adapter.md); until they pass, Android is **not supported**. Kotlin unit tests: `cd android && ./gradlew :soundcanvas-audio:testDebugUnitTest`.
+
+MediaPipe's built-in usage-statistics upload is disabled on Android, so a release build makes no network requests of its own; development builds still load JavaScript and the model from Metro and keep MediaPipe's telemetry (see `modules/soundcanvas-audio/android/src/noTelemetry/README.md`).
 
 ## Permissions and privacy
 
-- iOS asks for the microphone the first time the app is opened (`NSMicrophoneUsageDescription` in `app.json`). Once allowed, listening starts by itself whenever the app is opened or comes back to the foreground, **as long as listening is on**. If you deny it, the app does not ask again; it explains why and offers a shortcut to Settings.
+- iOS and Android ask for the microphone the first time the app is opened (`NSMicrophoneUsageDescription` and `RECORD_AUDIO` in `app.json`). Once allowed, listening starts by itself whenever the app is opened or comes back to the foreground, **as long as listening is on**. If you deny it, the app does not ask again; it explains why and offers a shortcut to Settings.
 - The user's listening choice is kept separate from the microphone's actual state. **Stop listening** is saved at once and survives backgrounding, force quit and relaunch; only **Start listening** turns it back on. With listening off, the app never opens the microphone or asks for permission.
 - Capture is foreground only and stops when you leave the app, unmount the screen, or the audio is interrupted. None of these changes the listening choice. While it is on, the screen says so in text.
 - Audio stays in memory long enough to be analysed. Nothing is written to disk or sent anywhere. The history list is in memory and clears when you start a new session. The only thing stored is a small preferences entry (theme, motion, listening on/off, haptic alerts).
