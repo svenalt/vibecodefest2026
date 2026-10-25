@@ -4,7 +4,7 @@
 
 AUVIONA explores how everyday sounds can become accessible visual cues and living generative art. The iOS prototype uses on-device sound recognition with Google's YAMNet; the interactive web demo lets anyone explore its visual language.
 
-**[Try the interactive web demo](https://sonora-vibecodefest-2026.swiftmule128.chatgpt.site)** · [Contribute](CONTRIBUTING.md) · [Open an issue](https://github.com/svenalt/vibecodefest2026/issues)
+**[Try the interactive web demo](https://sonora-vibecodefest-2026.swiftmule128.chatgpt.site)** · [Contribute](CONTRIBUTING.md) · [Open an issue](https://github.com/svenalt/vibecodefest2026/issues) · [Web demo source](web-demo/)
 
 Originally created for **Vibe Code Fest Basel 2026**. Earlier development names were SoundCanvas and SONORA; some internal module paths still use SoundCanvas.
 
