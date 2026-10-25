@@ -1,30 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SoundSession } from '../core/soundSession';
 import { fakeClassification } from '../core/testing/fakeSoundInput';
-import { NativeSoundInput, type SoundCanvasAudioModule } from './nativeSoundInput';
-
-/** Stand-in for the Swift/Kotlin module: records calls and lets a test fire native events. */
-function fakeNative() {
-  const listeners = new Map<string, Array<(p: any) => void>>();
-  const calls: string[] = [];
-  let permission: 'undetermined' | 'granted' | 'denied' = 'granted';
-  const native = {
-    getPermissionStatus: async () => permission,
-    requestPermission: async () => (permission = 'granted'),
-    start: async (modelPath: string) => {
-      calls.push(`start:${modelPath}`);
-    },
-    stop: async () => {
-      calls.push('stop');
-    },
-    addListener(event: string, listener: (p: any) => void) {
-      listeners.set(event, [...(listeners.get(event) ?? []), listener]);
-      return { remove: () => listeners.set(event, (listeners.get(event) ?? []).filter((l) => l !== listener)) };
-    },
-  } as unknown as SoundCanvasAudioModule;
-  const fire = (event: string, payload: unknown) => listeners.get(event)?.forEach((l) => l(payload));
-  return { native, calls, fire, setPermission: (p: typeof permission) => (permission = p) };
-}
+import { NativeSoundInput } from './nativeSoundInput';
+import { fakeNative } from './testing/fakeNativeModule';
 
 describe('NativeSoundInput', () => {
   it('resolves the model path and passes it to the native start', async () => {

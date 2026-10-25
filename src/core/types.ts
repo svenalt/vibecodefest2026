@@ -92,9 +92,9 @@ export interface SoundInputEvents {
 export type Unsubscribe = () => void;
 
 /**
- * The platform adapter contract. The iOS adapter (Swift) implements it today;
- * the Android adapter (Kotlin) must implement the same contract. Shared UI and
- * category logic only ever see this interface.
+ * The platform adapter contract, implemented by the iOS (Swift) and Android (Kotlin)
+ * adapters through one native module. Shared UI and category logic only ever see
+ * this interface.
  */
 export interface SoundInput {
   readonly platform: Platform;

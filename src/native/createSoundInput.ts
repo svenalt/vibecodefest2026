@@ -12,26 +12,24 @@ import {
 import { resolveModelPath } from './modelAsset';
 import { NativeSoundInput, type SoundCanvasAudioModule } from './nativeSoundInput';
 
+export const NATIVE_MODULE_MISSING =
+  'The SoundCanvasAudio native module is missing. Build a development build; Expo Go cannot run it.';
+
 /**
  * The only place that looks at the host platform. Everything above receives a SoundInput.
- * Returns an adapter that reports a clear error when the native module is not present
- * (Expo Go, web, or Android before its Kotlin adapter exists).
+ * iOS (Swift) and Android (Kotlin) share one native contract; when the module is not present
+ * (Expo Go, web, a build without native code) the adapter reports a clear error instead.
  */
 export function createSoundInput(): SoundInput {
   const platform = RNPlatform.OS === 'android' ? 'android' : 'ios';
   const native = requireOptionalNativeModule<SoundCanvasAudioModule>('SoundCanvasAudio');
-  if (RNPlatform.OS === 'ios' && native) {
-    return new NativeSoundInput('ios', native, resolveModelPath);
+  if ((RNPlatform.OS === 'ios' || RNPlatform.OS === 'android') && native) {
+    return new NativeSoundInput(platform, native, resolveModelPath);
   }
-
-  const reason =
-    RNPlatform.OS === 'android'
-      ? 'The Android YAMNet adapter is not implemented yet (see docs/android-adapter.md).'
-      : 'The SoundCanvasAudio native module is missing. Build a development build; Expo Go cannot run it.';
-  return new UnavailableSoundInput(platform, reason);
+  return new UnavailableSoundInput(platform, NATIVE_MODULE_MISSING);
 }
 
-class UnavailableSoundInput implements SoundInput {
+export class UnavailableSoundInput implements SoundInput {
   private readonly emitter = new SoundInputEmitter();
 
   constructor(
@@ -43,8 +41,9 @@ class UnavailableSoundInput implements SoundInput {
     return 'undetermined';
   }
 
+  /** Nothing can be asked without the module; rejecting lets the session show why. */
   async requestPermission(): Promise<PermissionStatus> {
-    return 'undetermined';
+    throw new Error(this.reason);
   }
 
   async start(): Promise<void> {
