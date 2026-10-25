@@ -34,7 +34,7 @@ How the contract is checked:
 - The [official Google/Kaggle model card](https://www.kaggle.com/models/google/yamnet/tfLite/classification-tflite/1) lists **Apache 2.0** for the TensorFlow Lite classification model, confirming the model-weight licence.
 - The original AudioSet training annotations have separate CC BY 4.0 terms; they are **not included** in this repository.
 
-For redistributed model artifacts retain the attribution and the Apache-2.0 licence text in [LICENSES/Apache-2.0.txt](../../LICENSES/Apache-2.0.txt). This model and the upstream labels are not part of the MIT grant for AUVIONA's original source code.
+For redistributed model artifacts retain the attribution and the Apache-2.0 licence text in [LICENSES/Apache-2.0.txt](../LICENSES/Apache-2.0.txt). This model and the upstream labels are not part of the MIT grant for AUVIONA's original source code.
 
 ## Taxonomy
 
