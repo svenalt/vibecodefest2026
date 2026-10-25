@@ -11,14 +11,17 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.soundcanvas.poc",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "AUVIONA uses the microphone only while the app is open and listening is on. Sound is analysed on this iPhone and held in memory just long enough to show labels and artwork; it is never recorded, saved or uploaded."
+        "NSMicrophoneUsageDescription": "AUVIONA uses the microphone only while the app is open and listening is on. Sound is analysed on this iPhone and held in memory just long enough to show labels and artwork; it is never recorded, saved or uploaded.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "app.soundcanvas.poc",
-      "permissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#02020A",
+        "backgroundColor": "#010613",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -28,6 +31,13 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-asset"]
+    "plugins": [
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3d58fca3-38a8-4b29-a0ea-15182cad4a1d"
+      }
+    }
   }
 }
