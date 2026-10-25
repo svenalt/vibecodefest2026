@@ -21,7 +21,7 @@ This is an **experimental prototype**, not an App Store-ready release or a safet
 
 | Platform | Status |
 | --- | --- |
-| iOS | Native YAMNet/SoundAnalysis-style on-device pipeline and shared UI implemented; device validation and release hardening are ongoing. |
+| iOS | Native on-device YAMNet audio pipeline and shared UI implemented; device validation and release hardening are ongoing. |
 | Android | Shared UI exists, but the native Kotlin microphone/YAMNet adapter is not implemented yet. **Not supported currently.** |
 | Web | Public interactive visualization demo; its example labels are illustrative, not live detections. |
 
