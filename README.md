@@ -1,70 +1,54 @@
-# SoundCanvas
+# AUVIONA
 
-An experimental iOS + Android app that listens through the microphone, only while you press Start, and shows what it hears as readable text, an icon, a short session history and a live generative visualization. Everything runs on the device with Google's YAMNet model. No audio is recorded, stored or uploaded, and there are no accounts, analytics or cloud services.
+**Making sound accessible to all.**
 
-**Not a safety system.** Do not rely on it for alarms, emergencies, navigation or medical decisions.
+AUVIONA explores how everyday sounds can become accessible visual cues and living generative art. The iOS prototype uses on-device sound recognition with Google's YAMNet; the interactive web demo lets anyone explore its visual language.
 
-Status: the iOS vertical slice is written and unit-tested, but has **not yet been built or run on an iPhone**. Android has an architecture and a design (`docs/android-adapter.md`) but no native implementation. See `docs/implementation-notes.md` for exactly what is and is not verified. The requirement is in `docs/requirements/REQ-001-soundcanvas-mvp.md`.
+**[Try the interactive web demo](https://sonora-vibecodefest-2026.swiftmule128.chatgpt.site)** · [Contribute](CONTRIBUTING.md) · [Open an issue](https://github.com/svenalt/vibecodefest2026/issues)
 
-## How it fits together
+Originally created for **Vibe Code Fest Basel 2026**. Earlier development names were SoundCanvas and SONORA; some internal module paths still use SoundCanvas.
 
-```text
-iOS:     mic -> AVAudioEngine -> 16 kHz mono -> YAMNet (MediaPipe, Swift) -+
-Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (Kotlin, planned) --+-> shared TypeScript
-                                                                           |   mapping, smoothing, cooldown
-                                                                           +-> accessible UI + Skia visualization
-```
+## What it does
 
-- `src/core/`: platform-neutral logic. Adapter contract (`types.ts`), YAMNet labels and the one taxonomy (`yamnet/`), normalization, event tracker (smoothing, debounce, cooldown), session controller, and fake adapters for tests.
-- `src/native/`: the bridge to the native module and the only place that checks the platform.
-- `src/ui/`, `src/viz/`, `src/hooks/`: the screen, the Skia scene and its state model, and React hooks.
-- `modules/soundcanvas-audio/ios/`: the Swift Expo module (capture, resampling, windowing, features, YAMNet).
-- `assets/model/`: the pinned model and label map. See `docs/model.md`.
+- Turns recognized sounds into readable labels, icons and a sound-reactive **Universe** artwork.
+- Uses adaptive animation, light/dark appearance, and a distraction-free immersive mode.
+- Runs audio recognition on-device in the **iOS prototype**; no accounts, analytics, audio recordings or audio uploads.
+- Provides a **web demo** with illustrative City, Nature and Music soundscapes and optional microphone-reactive visualization. The browser demo **does not classify sounds**.
 
-## Prerequisites
+## Project status
 
-- Node 20+ and npm.
-- For iOS: a Mac with full Xcode (not just Command Line Tools), CocoaPods working, an Apple ID for signing, and an iPhone with Developer Mode on. Expo Go cannot run this app because it needs a custom native module.
-- For Android (later): Android Studio with a recent SDK and a physical device.
+This is an **experimental prototype**, not an App Store-ready release or a safety tool.
 
-## Setup
+| Platform | Status |
+| --- | --- |
+| iOS | Native YAMNet/SoundAnalysis-style on-device pipeline and shared UI implemented; device validation and release hardening are ongoing. |
+| Android | Shared UI exists, but the native Kotlin microphone/YAMNet adapter is not implemented yet. **Not supported currently.** |
+| Web | Public interactive visualization demo; its example labels are illustrative, not live detections. |
+
+Do **not** rely on AUVIONA for emergencies, alarms, navigation, or medical decisions.
+
+## Run locally
+
+Prerequisites: Node.js 20+, npm; for iOS a Mac with Xcode, CocoaPods and an iPhone or simulator with suitable signing. Expo Go cannot load the custom native audio module.
 
 ```sh
 npm install
-npm run verify-model   # checks the pinned model and labels against their SHA-256
+npm run verify-model
 npm run typecheck
 npm test
-```
-
-## Run on an iPhone
-
-```sh
 npx expo run:ios --device
 ```
 
-This generates the gitignored `ios/` project (`expo prebuild`), installs pods including `MediaPipeTasksAudio` 1.0.0, builds a development build and installs it on the connected iPhone. The first build needs you to choose a signing team in Xcode (open `ios/SoundCanvas.xcworkspace` once). The bundle identifier `app.soundcanvas.poc` in `app.json` may need changing to something unique for your Apple ID.
+For the Android roadmap see [docs/android-adapter.md](docs/android-adapter.md). For model origin, checksums and licensing see [docs/model.md](docs/model.md). Other implementation notes are in [docs/implementation-notes.md](docs/implementation-notes.md).
 
-On the phone: allow the microphone when the app asks on first launch (listening starts by itself), then play speech, music, applause, a barking dog, rain or a bell. The "Show diagnostics" button displays the microphone format, the model class count and the measured latency. Record those numbers in `docs/implementation-notes.md`.
+## Privacy
 
-If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install first; the Swift module cannot build without it.
+In the native prototype, microphone audio is processed locally, in memory; it is not recorded, stored or uploaded. Listening is foreground-only. The web demo can request microphone permission to drive its visualization, but does not transmit audio or perform sound classification.
 
-## Android (planned)
+## Open source and contributions
 
-The same app and shared code target Android. The Kotlin YAMNet adapter is not written yet; the design, dependency choice and permission handling are in `docs/android-adapter.md`. Until then the Android build shows a clear "adapter not implemented" message when it tries to start listening. `RECORD_AUDIO` is already declared in `app.json`.
+**AUVIONA's original source code is released under the [MIT License](LICENSE).** Bundled third-party model files, label data and dependencies retain their respective upstream licenses; see [third-party notices](THIRD_PARTY_NOTICES.md) and [model documentation](docs/model.md).
 
-## Permissions and privacy
+Issues and small pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the quick workflow and areas to help, including Android support and accessibility testing.
 
-- iOS asks for the microphone the first time the app is opened (`NSMicrophoneUsageDescription` in `app.json`). Once allowed, listening starts by itself whenever the app is opened or comes back to the foreground. If you deny it, the app does not ask again; it explains why and offers a shortcut to Settings.
-- Capture is foreground only and stops when you press Stop, leave the app, unmount the screen, or the audio is interrupted. Returning to the app starts a new session. While it is on, the screen says so in text.
-- Audio stays in memory long enough to be analysed. Nothing is written to disk or sent anywhere. The history list is in memory and clears when you start a new session.
-- Logs and diagnostics contain technical state and model labels only.
-
-## Scripts
-
-| Script | What it does |
-| --- | --- |
-| `npm test` | Unit tests for the shared logic, bridge and visualization model |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run verify-model` | Verifies `assets/model/*` against the pinned hashes |
-| `npm run gen-labels` | Regenerates `src/core/yamnet/labels.ts` from the label CSV |
-| `npm run ios` / `npm run android` | `expo run:ios` / `expo run:android` |
+The MIT license grants permissions for code, **not permission to claim endorsement or use the AUVIONA name or logo as branding for another product**. AUVIONA's project identity is maintained by the project owner.
