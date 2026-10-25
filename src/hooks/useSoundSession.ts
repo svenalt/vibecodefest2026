@@ -1,17 +1,33 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
+import { ListeningController } from '../core/listeningController';
 import { SoundSession } from '../core/soundSession';
 import type { AudioFeatures } from '../core/types';
 import { createSoundInput } from '../native/createSoundInput';
 
-/** Owns the single SoundSession for the app and ties capture to the foreground. */
-export function useSoundSession() {
+/**
+ * Owns the single SoundSession for the app and ties capture to the foreground. Listening
+ * resumes on launch or return only while the user's persisted intent is on (REQ-008 P0-C).
+ */
+export function useSoundSession(initialListening: boolean, persistListening: (on: boolean) => void) {
   const sessionRef = useRef<SoundSession | null>(null);
   if (sessionRef.current === null) sessionRef.current = new SoundSession(createSoundInput());
   const session = sessionRef.current;
 
+  const persistRef = useRef(persistListening);
+  persistRef.current = persistListening;
+  const controllerRef = useRef<ListeningController | null>(null);
+  if (controllerRef.current === null) {
+    controllerRef.current = new ListeningController(session, {
+      desired: initialListening,
+      persist: (on) => persistRef.current(on),
+    });
+  }
+  const controller = controllerRef.current;
+
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot);
+  const intent = useSyncExternalStore(controller.subscribe, controller.getState);
 
   // Latest features for the visualization. A ref, so 20 Hz updates never re-render React.
   const featuresRef = useRef<AudioFeatures | null>(null);
@@ -24,19 +40,16 @@ export function useSoundSession() {
     if (!listening) featuresRef.current = null;
   }, [listening]);
 
-  // Listen as soon as the app is opened or comes back to the foreground. start() asks for
-  // microphone permission only while it is undetermined (first launch) and does nothing if denied.
+  // Foreground-only: leaving the app (or an inactive system sheet) and unmounting release the
+  // microphone without touching the user's intent.
   useEffect(() => {
-    void session.start();
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void session.start();
-      else void session.stop(); // foreground-only: release the microphone when leaving the app
-    });
+    controller.setForeground(AppState.currentState !== 'background');
+    const sub = AppState.addEventListener('change', (state) => controller.setForeground(state === 'active'));
     return () => {
       sub.remove();
-      void session.stop(); // unmount releases capture
+      controller.setForeground(false);
     };
-  }, [session]);
+  }, [controller]);
 
-  return { session, snapshot, getFeatures };
+  return { session, controller, snapshot, intent, getFeatures };
 }

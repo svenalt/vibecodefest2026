@@ -105,7 +105,7 @@ export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationC
         {mic.kind === 'blocked' && (
           <View style={[styles.notice, { backgroundColor: c.noticeBg }]} accessibilityRole="alert">
             <Text style={[styles.noticeText, { color: c.noticeText }]}>
-              Microphone access is turned off for SONORA, so the artwork cannot hear anything. Nothing is recorded
+              Microphone access is turned off for AUVIONA, so the artwork cannot hear anything. Nothing is recorded
               or uploaded.
             </Text>
             <Pressable

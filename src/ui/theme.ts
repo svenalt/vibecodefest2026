@@ -1,4 +1,6 @@
-import { createContext, createElement, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, createElement, useContext, useMemo, type ReactNode } from 'react';
+
+import { usePreferences } from '../app/PreferencesProvider';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -92,10 +94,14 @@ interface ThemeValue {
 
 const ThemeContext = createContext<ThemeValue>({ palette: dark, setMode: () => {} });
 
-/** App-wide Light/Dark. Defaults to Dark; not persisted yet (REQ-002 P1). */
+/** App-wide Light/Dark. Defaults to Dark; the choice is stored on the device (REQ-008 P1-A). */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>('dark');
-  const value = useMemo(() => ({ palette: mode === 'dark' ? dark : light, setMode }), [mode]);
+  const { prefs, update } = usePreferences();
+  const mode = prefs.theme;
+  const value = useMemo(
+    () => ({ palette: mode === 'dark' ? dark : light, setMode: (theme: ThemeMode) => update({ theme }) }),
+    [mode, update],
+  );
   return createElement(ThemeContext.Provider, { value }, children);
 }
 

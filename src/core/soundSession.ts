@@ -49,6 +49,8 @@ export class SoundSession {
   private snapshot: SessionSnapshot;
   /** True from start() until it settles, so a permission prompt or model load cannot be re-entered. */
   private starting = false;
+  /** Bumped by stop(). A start that sees it change gives up, so it can never undo a later stop. */
+  private generation = 0;
 
   constructor(input: SoundInput, tracker = new EventTracker(), now: () => number = Date.now) {
     this.input = input;
@@ -114,12 +116,19 @@ export class SoundSession {
   }
 
   private async startUnguarded(): Promise<void> {
+    const generation = this.generation;
     this.update({ error: null });
 
-    let permission = await this.input.getPermission();
-    if (permission === 'undetermined') permission = await this.input.requestPermission();
+    let permission: PermissionStatus;
+    try {
+      permission = await this.input.getPermission();
+      if (permission === 'undetermined') permission = await this.input.requestPermission();
+    } catch (e) {
+      this.update({ error: errorMessage(e) });
+      return;
+    }
     this.update({ permission });
-    if (permission !== 'granted') return;
+    if (permission !== 'granted' || generation !== this.generation) return;
 
     this.tracker.reset();
     this.startedAt = this.now();
@@ -131,10 +140,19 @@ export class SoundSession {
       await this.input.start();
     } catch (e) {
       this.update({ error: errorMessage(e) });
+      return;
     }
+    // stop() ran while capture was starting up: release what that start just opened.
+    if (generation !== this.generation) await this.stopInput();
   }
 
+  /** Releases capture and cancels any start still in flight. */
   async stop(): Promise<void> {
+    this.generation++;
+    await this.stopInput();
+  }
+
+  private async stopInput(): Promise<void> {
     try {
       await this.input.stop();
     } catch (e) {

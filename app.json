@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "SoundCanvas",
-    "slug": "soundcanvas",
-    "scheme": "soundcanvas",
-    "version": "0.1.0",
+    "name": "AUVIONA",
+    "slug": "auviona",
+    "scheme": "auviona",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "app.soundcanvas.poc",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "SoundCanvas listens through the microphone only while you have started a listening session. Audio is analysed on your device and is never recorded, stored or uploaded."
+        "NSMicrophoneUsageDescription": "AUVIONA uses the microphone only while the app is open and listening is on. Sound is analysed on this iPhone and held in memory just long enough to show labels and artwork; it is never recorded, saved or uploaded."
       }
     },
     "android": {

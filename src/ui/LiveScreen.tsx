@@ -68,8 +68,8 @@ export function LiveScreen({ active, immersive, onImmersiveChange, onOpenSetting
       {!immersive && (
         <View style={styles.header}>
           <View style={styles.brand}>
-            <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">
-              SONORA
+            <Text style={[styles.title, { color: c.text }]} accessibilityRole="header" accessibilityLabel="Auviona">
+              AUVIONA
             </Text>
             <Text style={[styles.tagline, { color: c.art }]}>Visualize Your Surroundings</Text>
           </View>
@@ -137,7 +137,7 @@ export function LiveScreen({ active, immersive, onImmersiveChange, onOpenSetting
       {!immersive && snapshot.permission === 'denied' && (
         <View style={[styles.notice, { backgroundColor: c.noticeBg }]} accessibilityRole="alert">
           <Text style={[styles.noticeText, { color: c.noticeText }]}>
-            Microphone access is turned off for SONORA. Nothing is recorded or uploaded.
+            Microphone access is turned off for AUVIONA. Nothing is recorded or uploaded.
           </Text>
           <Pressable
             onPress={() => void Linking.openSettings()}

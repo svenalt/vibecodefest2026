@@ -4,6 +4,7 @@ import { BackHandler, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { handlesBack, INITIAL_NAV, navReducer } from './src/app/navigation';
+import { PreferencesProvider } from './src/app/PreferencesProvider';
 import { SessionProvider, useSession } from './src/app/SessionProvider';
 import { LiveScreen } from './src/ui/LiveScreen';
 import { SettingsScreen } from './src/ui/SettingsScreen';
@@ -52,11 +53,13 @@ function Shell() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <SessionProvider>
-          <Shell />
-        </SessionProvider>
-      </ThemeProvider>
+      <PreferencesProvider>
+        <ThemeProvider>
+          <SessionProvider>
+            <Shell />
+          </SessionProvider>
+        </ThemeProvider>
+      </PreferencesProvider>
     </SafeAreaProvider>
   );
 }
