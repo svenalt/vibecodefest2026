@@ -9,6 +9,7 @@ import {
   intensityFromContrast,
   levelFromRms,
   motifForCurrent,
+  vizModeFor,
   type Motif,
   type VizInput,
 } from './vizModel';
@@ -19,6 +20,13 @@ const event = (category: Extract<Current, { kind: 'event' }>['category']): Curre
   score: 0.9,
   rawLabel: category,
   sinceMs: 0,
+});
+
+describe('vizModeFor (REQ-010)', () => {
+  it('follows the device: animated unless Reduce Motion is on, never off', () => {
+    expect(vizModeFor(false)).toBe('animated');
+    expect(vizModeFor(true)).toBe('reduced');
+  });
 });
 
 describe('motifForCurrent', () => {

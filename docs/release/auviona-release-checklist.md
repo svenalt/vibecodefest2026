@@ -22,7 +22,7 @@ P1:
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Theme and Motion survive relaunch with Reduce Motion fallback | **Pass in unit tests**, device restart test not run | `PreferencesStore` tests cover two successive restarts and `viz = null` staying null. |
+| Theme survives relaunch; motion follows Reduce Motion; legacy `viz` ignored (REQ-010) | **Pass in unit tests**, device restart test not run | `PreferencesStore` tests cover two successive restarts and legacy `viz` values (incl. `'off'`) being ignored without losing `listening: false`. |
 | Haptic alerts off by default, rate-limited, stop/background-safe, physically tested | **Implemented, not physically tested** | `HapticCueGate` tests. The toggle is visible because `HAPTIC_ALERTS_AVAILABLE = true` (for TestFlight testing). **Set it to `false` before a public build unless haptics were confirmed on an iPhone.** |
 
 ## Bundle and package ID
@@ -50,7 +50,7 @@ P1:
 
 Source-level audit (2026-10-25). It still has to be confirmed against the final archive.
 
-- **App code (TypeScript):** no `fetch`/XHR/WebSocket. Stores only the preferences JSON (`auviona.preferences`: theme, motion, listening intent, haptic alerts) through AsyncStorage. No audio, labels or history are stored.
+- **App code (TypeScript):** no `fetch`/XHR/WebSocket. Stores only the preferences JSON (`auviona.preferences`: theme, listening intent, haptic alerts) through AsyncStorage. No audio, labels or history are stored.
 - **Native module (Swift, `modules/soundcanvas-audio/ios`):** AVAudioEngine capture, in-memory resampling, MediaPipe inference. No networking, file writes, `UserDefaults`, logging or required-reason APIs in the Swift sources. The audio session now also allows haptics during recording (for P1-B).
 - **Model:** bundled `yamnet.tflite`, no runtime download (`expo-asset` resolves the embedded file in release builds).
 - **Third-party pods and their privacy manifests found in `node_modules`:**
@@ -102,9 +102,11 @@ Record date, device, iOS version, result and screenshot/log path for each row.
 | Rapid app switching ×10: one session, no stale "Microphone ON" | not run | not run |
 | Speech, music, bell/applause/dog/rain: correct labels; silence → Quiet; other → No confident sound | not run | not run |
 | Airplane mode: everything works | not run | not run |
-| Dark/Light and Animated/Reduced/Off each survive two relaunches | not run | not run |
-| Reduce Motion on with motion never chosen → Reduced; turning it off follows the device | not run | not run |
-| Immersive enter/exit, Pure Art / Art + Sounds | not run | not run |
+| Dark/Light each survive two relaunches | not run | not run |
+| Reduce Motion off → animated artwork; on → still artwork; toggling it while AUVIONA is backgrounded is picked up on return | not run | not run |
+| Upgrade from a build with Motion = Off: artwork and immersive mode visible at once; a saved Stop stays stopped | not run | not run |
+| Settings shows only Listening, Appearance, About (release build) | not run | not run |
+| Immersive enter/exit, Pure Art (no card) / Art + Sounds (live card at once, updates on new sounds, status when stopped) | not run | not run |
 | Largest Dynamic Type; VoiceOver through Live, Settings, links, haptics switch | not run | not run |
 | Privacy and Support links open in Safari and load (fresh session, cellular) | blocked (pages not published) | blocked |
 | Haptic alerts: off by default; on → one tap per new confirmed event while listening; none when stopped/background; no spam | not run | not run |

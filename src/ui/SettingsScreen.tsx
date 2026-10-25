@@ -1,11 +1,11 @@
 import Constants from 'expo-constants';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { openPublicPage } from '../app/publicLinks';
 import { PRE_RELEASE, PRIVACY_POLICY_URL, SUPPORT_URL } from '../app/release';
-import { useSession, type VizChoice } from '../app/SessionProvider';
+import { useSession } from '../app/SessionProvider';
 import { Diagnostics } from './Diagnostics';
 import { Icon } from './Icon';
 import type { IconName } from './icons';
@@ -63,20 +63,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const c = usePalette();
   const insets = useSafeAreaInsets();
   const setThemeMode = useSetThemeMode();
-  const {
-    snapshot,
-    busy,
-    listeningOn,
-    toggleListening,
-    vizChoice,
-    setVizChoice,
-    effectiveViz,
-    deviceReducesMotion,
-    hapticsAvailable,
-    hapticAlerts,
-    setHapticAlerts,
-  } = useSession();
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const { snapshot, busy, listeningOn, toggleListening, hapticsAvailable, hapticAlerts, setHapticAlerts } = useSession();
   // While a start is in flight the button offers Stop, so a pending start can be cancelled.
   const disabled = busy && !listeningOn;
 
@@ -187,42 +174,6 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
         />
       </Group>
 
-      <Group title="Visualization" icon="artwork">
-        <Segmented<VizChoice>
-          label="Motion"
-          value={effectiveViz}
-          options={[
-            { value: 'animated', label: 'Animated' },
-            { value: 'reduced', label: 'Reduced' },
-            { value: 'off', label: 'Off' },
-          ]}
-          onChange={setVizChoice}
-        />
-        {deviceReducesMotion && vizChoice === null && (
-          <Text style={[styles.hint, { color: c.subtext }]}>
-            Reduce Motion is on for this device, so the visualization starts in Reduced mode.
-          </Text>
-        )}
-        <Text style={[styles.hint, { color: c.subtext }]}>
-          Reduced shows a still artwork. Off hides the artwork and immersive mode; sound labels still work.
-        </Text>
-      </Group>
-
-      <Group title="Diagnostics" icon="diagnostics">
-        <Pressable
-          onPress={() => setShowDiagnostics((v) => !v)}
-          accessibilityRole="button"
-          accessibilityLabel={showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
-          accessibilityState={{ expanded: showDiagnostics }}
-          style={({ pressed }) => [styles.linkButton, { borderColor: c.border, opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Text style={{ color: c.text, fontSize: 16, fontWeight: '600' }}>
-            {showDiagnostics ? 'Hide diagnostics' : 'Show diagnostics'}
-          </Text>
-        </Pressable>
-        {showDiagnostics && <Diagnostics snapshot={snapshot} />}
-      </Group>
-
       <Group title="About" icon="about">
         {PRE_RELEASE && (
           <Text style={[styles.about, { color: c.text }]}>
@@ -249,6 +200,13 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
           <Text style={[styles.hint, { color: c.subtext }]}>Version {APP_VERSION}</Text>
         )}
       </Group>
+
+      {/* Development builds only: release builds show just Listening, Appearance and About. */}
+      {__DEV__ && (
+        <Group title="Developer" icon="diagnostics">
+          <Diagnostics snapshot={snapshot} />
+        </Group>
+      )}
     </ScrollView>
   );
 }

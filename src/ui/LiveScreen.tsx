@@ -37,13 +37,12 @@ interface Props {
 export function LiveScreen({ active, immersive, onImmersiveChange, onOpenSettings }: Props) {
   const c = usePalette();
   const insets = useSafeAreaInsets();
-  const { snapshot, getFeatures, busy, effectiveViz, deviceReducesMotion } = useSession();
+  const { snapshot, getFeatures, busy, effectiveViz } = useSession();
   const { height: windowHeight } = useWindowDimensions();
   const scrollRef = useRef<ScrollViewInstance>(null);
   const [presentation, setPresentation] = useState<Presentation>('art');
   const { current } = snapshot.tracker;
   const mic = micState(snapshot, busy);
-  const vizOn = effectiveViz !== 'off';
   const vizHeight = Math.round(Math.min(440, Math.max(260, windowHeight * 0.42)));
 
   const setImmersive = (on: boolean) => {
@@ -88,36 +87,26 @@ export function LiveScreen({ active, immersive, onImmersiveChange, onOpenSetting
         </View>
       )}
 
-      {vizOn ? (
-        <View style={immersive ? styles.fill : { height: vizHeight }}>
-          <SoundCanvasView
-            motif={motifForCurrent(current)}
-            mode={effectiveViz === 'reduced' ? 'reduced' : 'animated'}
-            rounded={!immersive}
-            getFeatures={getFeatures}
-            paused={!active}
+      <View style={immersive ? styles.fill : { height: vizHeight }}>
+        <SoundCanvasView
+          motif={motifForCurrent(current)}
+          mode={effectiveViz}
+          rounded={!immersive}
+          getFeatures={getFeatures}
+          paused={!active}
+        />
+        {immersive ? (
+          <ImmersiveOverlay
+            snapshot={snapshot}
+            busy={busy}
+            presentation={presentation}
+            onPresentationChange={setPresentation}
+            onExit={() => setImmersive(false)}
           />
-          {immersive ? (
-            <ImmersiveOverlay
-              snapshot={snapshot}
-              busy={busy}
-              presentation={presentation}
-              onPresentationChange={setPresentation}
-              onExit={() => setImmersive(false)}
-              reduceMotion={deviceReducesMotion || effectiveViz === 'reduced'}
-            />
-          ) : (
-            <EnterImmersiveButton onPress={() => setImmersive(true)} />
-          )}
-        </View>
-      ) : (
-        <View style={[styles.vizOff, { backgroundColor: c.cardMuted, borderColor: c.border }]}>
-          <Text style={[styles.vizOffText, { color: c.subtext }]}>
-            The artwork is turned off, so immersive mode is unavailable. You can turn it back on in Settings under
-            Visualization.
-          </Text>
-        </View>
-      )}
+        ) : (
+          <EnterImmersiveButton onPress={() => setImmersive(true)} />
+        )}
+      </View>
 
       {!immersive && <CurrentSound mic={mic.kind} current={current} hasPrediction={snapshot.tracker.lastPrediction !== null} />}
 
@@ -177,8 +166,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: 4 },
   tagline: { fontSize: 15, fontWeight: '600' },
-  vizOff: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACE.lg },
-  vizOffText: TYPE.callout,
   notice: { padding: SPACE.md, borderRadius: RADIUS.md, gap: SPACE.sm },
   noticeText: TYPE.callout,
   linkButton: {

@@ -14,7 +14,7 @@ Last updated: 2026-10-24. Automated checks were run on a Mac without Xcode, so n
 | Start activates a live stream; Stop releases it | Logic and ordering covered by tests with fakes; the Swift teardown has not run. **Not verified on a device.** |
 | Three categories demonstrated live on an iPhone | **Not verified.** |
 | Live classification runs bundled YAMNet | The code path uses the bundled model through MediaPipe; **not run**. |
-| Visualization responds to live energy and two categories; can be reduced | Implemented (animated, reduced, off, follows the device's Reduce Motion). Its state model is unit-tested; the Skia rendering has **not been seen on a screen**. |
+| Visualization responds to live energy and two categories; can be reduced | Implemented (animated, or a still frame when the device's Reduce Motion is on; REQ-010 removed the user-facing Motion and Off settings). Its state model is unit-tested; the Skia rendering has **not been seen on a screen**. |
 | Labels and icons legible independent of the visualization | By construction: the visualization is hidden from accessibility and the text card does not depend on it. Not checked with VoiceOver. |
 | Runs offline; no audio persisted or uploaded | By construction: no network calls or storage in the code; model is bundled. **Not verified** with networking disabled on a device. |
 | Automated tests for mapping, ordering, schema, smoothing, cooldown, unknown | Done: 57 tests in 7 files (`npm test`), using fake adapters impersonating iOS and Android. |
@@ -54,7 +54,7 @@ These are guesses from reading code and headers, not observed failures.
 - Mono analysis only; no direction, distance or radar.
 - Only six demo categories plus silence are surfaced; everything else is shown as "No confident sound".
 - Icons are a small line-icon set drawn with Skia (REQ-006); they are decorative and always paired with text.
-- Raw labels and scores appear only in Settings > Diagnostics (REQ-006), never in the main UI.
+- Raw labels and scores appear only in the development-build diagnostics (Settings > Developer, `__DEV__` only since REQ-010), never in the main UI or in release builds.
 - Not a safety, emergency, navigation or medical system.
 
 ## Follow-up
@@ -273,3 +273,31 @@ Expected: first result after about 1 s of audio plus model load and inference; n
 - The iOS MediaPipe pod has not been checked for telemetry (release checklist).
 - Play release gate, not REQ-009: the generated release manifest also requests `INTERNET`, `READ/WRITE_EXTERNAL_STORAGE` and `SYSTEM_ALERT_WINDOW` from Expo defaults. AUVIONA uses none of them in release; decide on `android.blockedPermissions` in `app.json` before a store build.
 - Debug builds can send MediaPipe usage statistics (see `noTelemetry/README.md`); judge network behaviour only on a release build.
+
+# REQ-010 Simplified Settings and live immersive sound card notes
+
+Supersedes the Motion setting (REQ-004/006/008), the Settings > Diagnostics group (REQ-006) and the expiring Art + Sounds caption with its "Current sound" button (REQ-006) described above.
+
+## Settings
+
+- Release builds show only **Listening**, **Appearance** and **About**, in that order. The Visualization (Animated / Reduced / Off) and Diagnostics groups are gone.
+- `Diagnostics.tsx`, the session's diagnostic counters and the native logs are unchanged. The panel is rendered in Settings under a **Developer** group only when `__DEV__` is true (Metro/dev-client builds), so EAS preview/production builds never contain it.
+
+## Motion follows the device
+
+- `effectiveViz = vizModeFor(useReduceMotion())` (`src/viz/vizModel.ts`): animated, or one still frame when Reduce Motion is on. There is no "off", so the artwork and immersive mode are always available; the "artwork is turned off" card on Live and the `vizOn`/`vizOff` navigation paths were removed.
+- `PreferencesProvider` waits for `primeReduceMotion()` (bounded at 500 ms) alongside the preferences read, so the first frame already uses the right mode. `useReduceMotion` follows `reduceMotionChanged` and re-reads on every return to the foreground.
+
+## Legacy `viz` preference
+
+- `viz` is no longer part of `Preferences`. `parsePreferences` ignores any stored `viz` value (`'off'`, `'animated'`, `'reduced'`, `null` or garbage) without marking the entry as recovered, and the next write drops the field. The schema version stays 1, so stored theme, haptic alerts and especially `listening: false` survive the upgrade. Hydrating alone never rewrites storage.
+
+## Immersive Art + Sounds
+
+- The bottom card is always present in Art + Sounds and renders `immersiveCard(...)` (`src/ui/status.ts`) from the current snapshot on every render: the confirmed `tracker.current` event while the microphone is on, otherwise the same truthful status as Live (Listening for sounds, Quiet, Not listening, Starting…, Microphone blocked, Listening stopped). No timer, fade or tap. Pure Art shows no card.
+- `captionKey`, the caption timer and fade, the `reduceMotion` prop and the "Current sound" button were removed. Screen readers still hear confirmed changes through the app-wide announcement in `SessionProvider`.
+
+## Verification
+
+- `npm run typecheck` and `npm test` pass. New tests: legacy `viz` parsing and migration, `vizModeFor`, `immersiveCard`, and source checks for the Settings groups and the overlay (`src/ui/settingsLayout.test.ts`), since the node test environment cannot mount React Native screens.
+- **Not run on a device**: iOS smoke test, Reduce Motion on/off, legacy upgrade with `viz: 'off'`, Dark/Light, large text and VoiceOver/TalkBack. Android awaits the REQ-009 device gates.

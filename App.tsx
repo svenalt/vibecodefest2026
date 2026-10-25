@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { handlesBack, INITIAL_NAV, navReducer } from './src/app/navigation';
 import { PreferencesProvider } from './src/app/PreferencesProvider';
-import { SessionProvider, useSession } from './src/app/SessionProvider';
+import { SessionProvider } from './src/app/SessionProvider';
 import { LiveScreen } from './src/ui/LiveScreen';
 import { SettingsScreen } from './src/ui/SettingsScreen';
 import { ThemeProvider, usePalette } from './src/ui/theme';
@@ -13,13 +13,8 @@ import { ThemeProvider, usePalette } from './src/ui/theme';
 /** Live is the root screen; Settings opens over it and immersive mode is a presentation of it. */
 function Shell() {
   const c = usePalette();
-  const { effectiveViz } = useSession();
   const [nav, dispatch] = useReducer(navReducer, INITIAL_NAV);
   const onLive = nav.screen === 'live';
-
-  useEffect(() => {
-    if (effectiveViz === 'off') dispatch({ type: 'vizOff' });
-  }, [effectiveViz]);
 
   // Android back: leave immersion, then Settings, then the app.
   useEffect(() => {
@@ -39,9 +34,7 @@ function Shell() {
         <LiveScreen
           active={onLive}
           immersive={nav.immersive}
-          onImmersiveChange={(on) =>
-            dispatch(on ? { type: 'enterImmersive', vizOn: effectiveViz !== 'off' } : { type: 'exitImmersive' })
-          }
+          onImmersiveChange={(on) => dispatch({ type: on ? 'enterImmersive' : 'exitImmersive' })}
           onOpenSettings={() => dispatch({ type: 'openSettings' })}
         />
       </View>

@@ -25,7 +25,7 @@ Status: **draft for owner review.** Do not enter it in App Store Connect until t
 >
 > Private by design: sound is analysed on your iPhone. Audio is held in memory only long enough to be analysed and is never recorded, saved or uploaded. There is no account, no ads and no tracking, and it works offline.
 >
-> You are in control: stop listening at any time in Settings and AUVIONA stays off until you start it again. The microphone is only used while the app is open. Choose Dark or Light, animated, reduced or no motion, and optional haptic alerts.
+> You are in control: stop listening at any time in Settings and AUVIONA stays off until you start it again. The microphone is only used while the app is open. Choose Dark or Light and optional haptic alerts; the artwork follows your iPhone's Reduce Motion setting.
 >
 > Important: AUVIONA is made for art and general sound awareness. It can miss or mislabel sounds and is not reliable for emergencies, alarms, safety-critical decisions, navigation or medical decisions.
 
@@ -41,9 +41,9 @@ To be captured from the **TestFlight build on an iPhone**, 6.9" or 6.7" display 
 
 1. Live with a confirmed sound (e.g. Music) and the artwork.
 2. Immersive Pure Art.
-3. Immersive Art + Sounds with a caption.
+3. Immersive Art + Sounds with the current-sound card.
 4. Live sound list (recent sounds).
-5. Settings: Listening, Appearance, Visualization, About with the limitation text.
+5. Settings: Listening, Appearance, About with the limitation text.
 
 Not yet taken.
 
@@ -64,7 +64,7 @@ No demo account is needed.
 Draft answer: **Data Not Collected.** This is conditional on the binary audit in the release checklist (MediaPipe pods, final archive). Basis:
 
 - Microphone audio is processed on-device in memory and never leaves the device or gets stored.
-- The only stored data are local preferences (theme, motion, listening on/off, haptic alerts), never transmitted.
+- The only stored data are local preferences (theme, listening on/off, haptic alerts), never transmitted.
 - No analytics, crash-reporting, advertising or tracking SDKs; no network requests.
 - Crash and usage data that Apple collects from users who opt in to share with developers is Apple's processing. It does not count as collection by the app.
 

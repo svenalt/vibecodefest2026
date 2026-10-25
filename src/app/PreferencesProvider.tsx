@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { View } from 'react-native';
 
+import { primeReduceMotion } from '../hooks/useReduceMotion';
 import { deviceKeyValueStore } from '../native/keyValueStore';
 import { PreferencesStore, type Preferences } from './preferences';
 
@@ -24,8 +25,9 @@ const PreferencesContext = createContext<PreferencesValue | null>(null);
 const HYDRATING_BG = '#0B1120';
 
 /**
- * Reads the stored preferences once, before anything else renders, so there is no wrong-theme
- * flash, no animation burst and no auto-start before the user's listening choice is known.
+ * Reads the stored preferences (and the device's Reduce Motion setting) once, before anything
+ * else renders, so there is no wrong-theme flash, no animation burst and no auto-start before
+ * the user's listening choice is known.
  */
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const storeRef = useRef<PreferencesStore | null>(null);
@@ -35,7 +37,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    void store.hydrate().then(() => !cancelled && setReady(true));
+    void Promise.all([store.hydrate(), primeReduceMotion()]).then(() => !cancelled && setReady(true));
     return () => {
       cancelled = true;
     };

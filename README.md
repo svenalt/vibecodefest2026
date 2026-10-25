@@ -69,7 +69,7 @@ npx expo run:ios --device
 
 This generates the gitignored `ios/` project (`expo prebuild`), installs pods including `MediaPipeTasksAudio` 1.0.0, builds a development build and installs it on the connected iPhone. The first build needs you to choose a signing team in Xcode (open `ios/AUVIONA.xcworkspace` once). The bundle identifier in `app.json` is still the development value `app.soundcanvas.poc`; the permanent ID is a release decision recorded in `docs/release/auviona-release-checklist.md`.
 
-On the phone: allow the microphone when the app asks on first launch (listening starts by itself), then play speech, music, applause, a barking dog, rain or a bell. The "Show diagnostics" button displays the microphone format, the model class count and the measured latency. Record those numbers in `docs/implementation-notes.md`.
+On the phone: allow the microphone when the app asks on first launch (listening starts by itself), then play speech, music, applause, a barking dog, rain or a bell. In a development build (`__DEV__`), Settings > Developer displays the microphone format, the model class count and the measured latency; release builds do not show it. Record those numbers in `docs/implementation-notes.md`.
 
 If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install first; the Swift module cannot build without it.
 
@@ -79,7 +79,7 @@ If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install fir
 npx expo run:android --device
 ```
 
-This generates the gitignored `android/` project, builds a development build with the Kotlin module and MediaPipe Tasks Audio 1.0.0, and installs it. Android asks for the microphone like iOS; if it is refused, the app explains why and links to the app's system settings. The diagnostics show the device and analysis format and the model class count, and logcat (`adb logcat -s SoundCanvasAudio`) prints a start and stop summary with inference timings. Record results against the gates in [docs/android-adapter.md](docs/android-adapter.md); until they pass, Android is **not supported**. Kotlin unit tests: `cd android && ./gradlew :soundcanvas-audio:testDebugUnitTest`.
+This generates the gitignored `android/` project, builds a development build with the Kotlin module and MediaPipe Tasks Audio 1.0.0, and installs it. Android asks for the microphone like iOS; if it is refused, the app explains why and links to the app's system settings. The development-build diagnostics show the device and analysis format and the model class count, and logcat (`adb logcat -s SoundCanvasAudio`) prints a start and stop summary with inference timings. Record results against the gates in [docs/android-adapter.md](docs/android-adapter.md); until they pass, Android is **not supported**. Kotlin unit tests: `cd android && ./gradlew :soundcanvas-audio:testDebugUnitTest`.
 
 MediaPipe's built-in usage-statistics upload is disabled on Android, so a release build makes no network requests of its own; development builds still load JavaScript and the model from Metro and keep MediaPipe's telemetry (see `modules/soundcanvas-audio/android/src/noTelemetry/README.md`).
 
@@ -88,7 +88,7 @@ MediaPipe's built-in usage-statistics upload is disabled on Android, so a releas
 - iOS and Android ask for the microphone the first time the app is opened (`NSMicrophoneUsageDescription` and `RECORD_AUDIO` in `app.json`). Once allowed, listening starts by itself whenever the app is opened or comes back to the foreground, **as long as listening is on**. If you deny it, the app does not ask again; it explains why and offers a shortcut to Settings.
 - The user's listening choice is kept separate from the microphone's actual state. **Stop listening** is saved at once and survives backgrounding, force quit and relaunch; only **Start listening** turns it back on. With listening off, the app never opens the microphone or asks for permission.
 - Capture is foreground only and stops when you leave the app, unmount the screen, or the audio is interrupted. None of these changes the listening choice. While it is on, the screen says so in text.
-- Audio stays in memory long enough to be analysed. Nothing is written to disk or sent anywhere. The history list is in memory and clears when you start a new session. The only thing stored is a small preferences entry (theme, motion, listening on/off, haptic alerts).
+- Audio stays in memory long enough to be analysed. Nothing is written to disk or sent anywhere. The history list is in memory and clears when you start a new session. The only thing stored is a small preferences entry (theme, listening on/off, haptic alerts). Motion follows the device's Reduce Motion setting.
 - Logs and diagnostics contain technical state and model labels only.
 - The web demo can request microphone permission to drive its visualization, but does not transmit audio or perform sound classification.
 
