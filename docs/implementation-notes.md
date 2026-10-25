@@ -142,3 +142,41 @@ Already delivered by commit `4285d03` and verified against REQ-007: Live is the 
 - iPhone 13 Pro Max screenshots of Dark Live, Light Live and Dark immersive, and a recording of the motion during real speech, taps and music: **not taken**.
 - Whether a quiet voice in a quiet room produces visible deformation at real microphone levels (tuned on synthetic inputs only).
 - Frame rate, memory (one `SkPicture` per frame left to GC) and heat over a 5-10 minute session.
+
+
+# REQ-008 AUVIONA 1.0 release-readiness notes
+
+Last updated: 2026-10-25. Typecheck, 137 unit tests and `verify-model` pass. **Nothing in this section has been built, signed, uploaded or run on an iPhone.** Release gates, the audit and the device QA matrix live in `docs/release/auviona-release-checklist.md`.
+
+## Identity (P0-A)
+
+- `app.json`: name `AUVIONA`, slug and scheme `auviona`, version `1.0.0`, new microphone text (on-device, in memory only, never recorded, saved or uploaded). The bundle/package ID is deliberately still `app.soundcanvas.poc` until the owner confirms the permanent one.
+- Live header (spoken as "Auviona"), the three "Microphone access is turned off" notices and About now say AUVIONA. No blind replace: internal module, pod, component and package names are unchanged.
+
+## Listening intent (P0-C)
+
+- `src/core/listeningController.ts` keeps the user's **desired** listening separate from actual capture. Capture runs only while desired AND foreground. Leaving the foreground (background, or iOS's inactive state during system sheets) and unmount release the microphone without touching `desired`; only Start/Stop change it, and they persist it at once.
+- `SoundSession.stop()` now cancels a start that is still in flight (generation counter): a stop during the permission prompt prevents capture from opening, and a stop during capture start-up releases it as soon as start-up finishes. A start that settles after the inputs changed triggers one more reconcile, so the last state wins. A failed start is not retried in a loop.
+- The Settings button offers **Stop** while a start is in flight, so a pending start can be cancelled. A hint under it explains the auto-resume rule.
+- Permission is requested only from a start, and a start runs only while listening is desired. With listening off, foregrounding never prompts.
+
+## Preferences (P1-A, also stores the P0-C intent)
+
+- `src/app/preferences.ts`: one JSON entry (`auviona.preferences`, versioned) in AsyncStorage holding theme, `viz` (the user's actual choice; `null` still means follow Reduce Motion), `listening` and `hapticAlerts`. Writes are ordered; a failed write keeps the in-memory value.
+- Recovery is deterministic. Missing key = first install (Dark, follow device, listening **on**, haptics off). Unparsable JSON, wrong version, a read error or a read that hangs past 1.5 s = defaults with listening **off**, so a persisted Stop can never turn into an auto-start. Invalid single fields fall back per field, and an invalid `listening` means off.
+- `PreferencesProvider` renders a plain Dark-background view until the read finishes, so there is no wrong-theme flash, animation burst or early auto-start.
+
+## Haptic alerts (P1-B)
+
+- Off by default, persisted. When on, `HapticCueGate` plays one medium impact (`expo-haptics`) per **new timeline event**, i.e. after smoothing, debounce and the per-category cooldown, and only while actually listening. Events seen while off, stopped or backgrounded are consumed, never replayed, and cues are at least 4 s apart across categories.
+- iOS mutes haptics while an audio session is recording. `AudioPipeline` now sets `setAllowHapticsAndSystemSoundsDuringRecording(true)` (syntax-checked with `swiftc -parse` only). Whether the cue is felt during capture is **unverified**.
+- `HAPTIC_ALERTS_AVAILABLE` in `src/app/release.ts` shows the setting. Turn it off for a public build unless it was tested on an iPhone.
+
+## Privacy and support (P0-B)
+
+- Settings > About has distinct **Privacy Policy** and **Support** links (role `link`, 56 pt targets, both themes) and the app version. `openPublicPage` accepts only `https://` URLs and never throws; an unpublished page or a failed open shows a plain alert instead of crashing.
+- `PRIVACY_POLICY_URL` and `SUPPORT_URL` are `null` until the owner confirms a domain and the drafts in `site/` are live.
+
+## New dependencies
+
+`@react-native-async-storage/async-storage` 2.2.0, `expo-haptics` ~58.0.7, `expo-constants` ~58.0.13 (already in the tree via `expo`), all installed with `npx expo install`. `expo-haptics` adds Android's `VIBRATE` permission (no prompt).
