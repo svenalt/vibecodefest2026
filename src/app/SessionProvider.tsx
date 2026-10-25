@@ -29,6 +29,8 @@ interface SessionValue {
   busy: boolean;
   /** Listening is on or being turned on, so the control offers Stop. */
   listeningOn: boolean;
+  /** The user's intent, which stays on through a failure or interruption until they press Stop. */
+  listeningDesired: boolean;
   toggleListening: () => void;
   /** Follows the device's Reduce Motion setting; there is no user-facing choice. */
   effectiveViz: VizMode;
@@ -48,8 +50,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const effectiveViz = vizModeFor(useReduceMotion());
 
   const status = snapshot.capture.status;
-  const listening = status === 'listening';
-  const busy = intent.starting || status === 'starting' || status === 'stopping';
+  // A failed session is not listening, even while its capture is still being released.
+  const listening = status === 'listening' && snapshot.error === null;
+  const busy = intent.starting || intent.stopping || status === 'starting' || status === 'stopping';
   const listeningOn = listening || (intent.starting && intent.desired);
   const { current } = snapshot.tracker;
 
@@ -91,6 +94,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       getFeatures,
       busy,
       listeningOn,
+      listeningDesired: intent.desired,
       toggleListening,
       effectiveViz,
       hapticsAvailable,
@@ -103,6 +107,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       getFeatures,
       busy,
       listeningOn,
+      intent.desired,
       toggleListening,
       effectiveViz,
       hapticsAvailable,

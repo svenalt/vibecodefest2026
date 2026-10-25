@@ -2,6 +2,8 @@
 
 Status: **draft for owner review.** Do not enter it in App Store Connect until the release checklist gates are cleared. Each claim below matches the current app; if the app changes, update this file.
 
+The Privacy Policy and Support URLs are the canonical URLs the live site declares for its footer pages (checked 2026-10-25: HTTPS, no sign-in, one same-site redirect to the trailing-slash path, intended page shown). Their **content** still describes the app as unreleased ("No public app release exists yet, so a final policy will be published with the first release"; the support page says there is no public release) and the privacy page still lists a "motion" preference that REQ-010 removed. The owner must update both pages before submission; see the release checklist.
+
 ## App information
 
 | Field | Draft |
@@ -10,9 +12,9 @@ Status: **draft for owner review.** Do not enter it in App Store Connect until t
 | Subtitle (≤30) | See sound as living art |
 | Primary category | Lifestyle (alternative: Entertainment) |
 | Age rating | 4+ (questionnaire: no objectionable content, no web access in app, no user-generated content, no gambling, no contests). Owner to confirm in the questionnaire. |
-| Privacy Policy URL | _pending: published `site/privacy.html` URL_ |
-| Support URL | _pending: published `site/support.html` URL_ |
-| Marketing URL | optional; website if owned |
+| Privacy Policy URL | https://auviona.swarmz.cloud/privacy |
+| Support URL | https://auviona.swarmz.cloud/support |
+| Marketing URL | optional: https://auviona.swarmz.cloud (owner decision) |
 | Copyright | _pending owner: "© 2026 <operator>"_ |
 | Price | _owner decision_ |
 | Devices | iPhone only (`supportsTablet: false`), iOS 16.4+ |
@@ -51,7 +53,7 @@ Not yet taken.
 
 > AUVIONA needs microphone access to work. On first launch iOS asks for permission; after you allow it, listening starts automatically while the app is open. To test recognition, play speech, music, applause, a dog bark, rain or a bell sound near the iPhone (a YouTube video on another device works). The label and icon update within about one second; other sounds show "No confident sound" and quiet rooms show "Quiet".
 >
-> Listening is controlled in Settings (gear icon, top right): "Stop listening" turns the microphone off, and it stays off across app switches and relaunches until "Start listening" is pressed. The microphone is never used in the background.
+> Listening is controlled in Settings (gear icon, top right): "Stop listening" turns the microphone off, and it stays off across app switches and relaunches until "Start listening" is pressed. The microphone is never used in the background. If the audio pipeline fails, listening stops, the screen shows the problem, and "Start listening" tries again.
 >
 > All analysis runs on-device with a bundled model (Google YAMNet via MediaPipe). The app makes no network requests, has no account and collects no data. Settings > About links to the privacy policy and support page.
 >

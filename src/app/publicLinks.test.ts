@@ -12,10 +12,10 @@ describe('public privacy and support links', () => {
     }
   });
 
-  it('configured release links are HTTPS or explicitly unpublished (null)', () => {
-    for (const url of [PRIVACY_POLICY_URL, SUPPORT_URL]) {
-      expect(url === null || isPublicPageUrl(url)).toBe(true);
-    }
+  it('configured release links are the published canonical pages (REQ-011)', () => {
+    expect(PRIVACY_POLICY_URL).toBe('https://auviona.swarmz.cloud/privacy');
+    expect(SUPPORT_URL).toBe('https://auviona.swarmz.cloud/support');
+    for (const url of [PRIVACY_POLICY_URL, SUPPORT_URL]) expect(isPublicPageUrl(url)).toBe(true);
   });
 
   it('opens a configured page', async () => {

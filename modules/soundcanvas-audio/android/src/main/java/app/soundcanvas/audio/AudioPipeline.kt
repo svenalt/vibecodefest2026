@@ -30,13 +30,16 @@ import java.util.concurrent.atomic.AtomicInteger
  *
  * Start and stop run in order on one lifecycle thread. Nothing ever waits for that thread, so
  * teardown (which waits for the capture and inference threads) cannot deadlock.
+ *
+ * A fatal failure (read error, inference, contract, interruption) closes that session's gate at
+ * once, then tears down on the lifecycle thread and reports a terminal `error` state, unless a
+ * stop or a newer session got there first. Same contract as ios/AudioPipeline.swift.
  */
 internal class AudioPipeline(context: Context, private val sinks: Sinks) {
   class Sinks(
     val state: (Map<String, Any?>) -> Unit,
     val classification: (Map<String, Any?>) -> Unit,
     val features: (Map<String, Any?>) -> Unit,
-    val error: (String) -> Unit,
   )
 
   private val context = context.applicationContext
@@ -133,14 +136,13 @@ internal class AudioPipeline(context: Context, private val sinks: Sinks) {
     s.end()
   }
 
-  /** Stops on the lifecycle thread and reports why, unless that session has already ended. */
+  /** Stops on the lifecycle thread and reports why as a terminal state, unless that session has already ended. */
   private fun fail(epoch: Int, message: String) {
     post {
       if (session?.epoch != epoch) return@post
       sinks.state(stateBody("stopping"))
       teardown()
-      sinks.state(stateBody("idle"))
-      sinks.error(message)
+      sinks.state(stateBody("error", error = message))
     }
   }
 
@@ -260,8 +262,11 @@ internal class AudioPipeline(context: Context, private val sinks: Sinks) {
       Log.i(TAG, "Stopped: ${stats.summary()} windows=${slot.submittedCount} dropped=${slot.droppedCount}")
     }
 
+    /** Any thread. The first failure silences this session at once; teardown follows on the lifecycle thread. */
     private fun failOnce(message: String) {
-      if (failed.compareAndSet(false, true)) fail(epoch, message)
+      if (!failed.compareAndSet(false, true)) return
+      gate.close(epoch) // no older session's late failure can close a newer session's gate
+      fail(epoch, message)
     }
 
     private fun readLoop() {

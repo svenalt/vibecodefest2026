@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { usePreferences } from '../app/PreferencesProvider';
 import { openPublicPage } from '../app/publicLinks';
 import { PRE_RELEASE, PRIVACY_POLICY_URL, SUPPORT_URL } from '../app/release';
 import { useSession } from '../app/SessionProvider';
@@ -11,6 +12,7 @@ import { Icon } from './Icon';
 import type { IconName } from './icons';
 import { MicStatus } from './MicStatus';
 import { Segmented } from './Segmented';
+import { listeningHint, saveNotice } from './status';
 import { RADIUS, SPACE, TOUCH, TOUCH_MIN, TYPE, usePalette, useSetThemeMode, type ThemeMode } from './theme';
 
 function Group({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
@@ -63,9 +65,12 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
   const c = usePalette();
   const insets = useSafeAreaInsets();
   const setThemeMode = useSetThemeMode();
-  const { snapshot, busy, listeningOn, toggleListening, hapticsAvailable, hapticAlerts, setHapticAlerts } = useSession();
+  const { snapshot, busy, listeningOn, listeningDesired, toggleListening, hapticsAvailable, hapticAlerts, setHapticAlerts } =
+    useSession();
+  const { prefs, save, launchListening, retrySave } = usePreferences();
   // While a start is in flight the button offers Stop, so a pending start can be cancelled.
   const disabled = busy && !listeningOn;
+  const unsaved = saveNotice(save, prefs.listening, launchListening);
 
   return (
     <ScrollView
@@ -113,11 +118,21 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
             {disabled ? 'Please wait…' : listeningOn ? 'Stop listening' : 'Start listening'}
           </Text>
         </Pressable>
-        <Text style={[styles.hint, { color: c.subtext }]}>
-          {listeningOn
-            ? 'Listening is on. It pauses whenever you leave AUVIONA and resumes when you come back.'
-            : 'Listening is off. It stays off, even after you leave or restart AUVIONA, until you start it again.'}
-        </Text>
+        <Text style={[styles.hint, { color: c.subtext }]}>{listeningHint(listeningOn, listeningDesired, save)}</Text>
+        {unsaved !== null && (
+          <View style={[styles.notice, { backgroundColor: c.noticeBg }]} accessibilityRole="alert">
+            <Text style={[styles.noticeText, { color: c.noticeText }]}>{unsaved}</Text>
+            <Pressable
+              onPress={retrySave}
+              accessibilityRole="button"
+              accessibilityLabel="Retry saving"
+              accessibilityHint="Tries again to save your choice for the next launch"
+              style={({ pressed }) => [styles.linkButton, { borderColor: c.noticeText, opacity: pressed ? 0.6 : 1 }]}
+            >
+              <Text style={{ color: c.noticeText, fontSize: 16, fontWeight: '700' }}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
         {snapshot.permission === 'denied' && (
           <View style={[styles.notice, { backgroundColor: c.noticeBg }]} accessibilityRole="alert">
             <Text style={[styles.noticeText, { color: c.noticeText }]}>

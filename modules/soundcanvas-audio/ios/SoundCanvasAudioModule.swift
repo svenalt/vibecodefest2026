@@ -6,13 +6,14 @@ public class SoundCanvasAudioModule: Module {
     sinks: AudioPipeline.Sinks(
       state: { [weak self] body in self?.sendEvent("onState", body) },
       classification: { [weak self] body in self?.sendEvent("onClassification", body) },
-      features: { [weak self] body in self?.sendEvent("onFeatures", body) },
-      error: { [weak self] message in self?.sendEvent("onError", ["message": message]) }
+      features: { [weak self] body in self?.sendEvent("onFeatures", body) }
     ))
 
   public func definition() -> ModuleDefinition {
     Name("SoundCanvasAudio")
 
+    // Fatal failures arrive as a terminal onState `error` (after teardown). onError stays in the
+    // shared contract and is treated as fatal by the JS session.
     Events("onState", "onClassification", "onFeatures", "onError")
 
     AsyncFunction("getPermissionStatus") { () -> String in

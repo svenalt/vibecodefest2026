@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SoundSession } from './soundSession';
 import { FakeSoundInput, gate, settle } from './testing/fakeSoundInput';
-import type { Platform } from './types';
+import { IDLE_CAPTURE_STATE, type Platform } from './types';
 
 function setup(platform: Platform = 'ios') {
   const input = new FakeSoundInput(platform);
@@ -138,6 +138,7 @@ describe('SoundSession lifecycle', () => {
 
   it('forwards features without putting them in the React snapshot', async () => {
     const { input, session } = setup();
+    await session.start();
     const seen: number[] = [];
     session.onFeatures((f) => seen.push(f.rms));
     const before = session.getSnapshot();
@@ -211,3 +212,142 @@ describe('SoundSession lifecycle', () => {
     expect(input.stopCalls).toBe(1);
   });
 });
+
+/** REQ-011 P0-A: a fatal failure must end the session truthfully, never leave it looking healthy. */
+describe('SoundSession fatal failures', () => {
+  async function hearingSpeech() {
+    const t = setup();
+    await t.session.start();
+    for (let i = 0; i < 3; i++) t.input.emitScores(i * 500, [['Speech', 0.9]]);
+    expect(t.session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', category: 'speech' });
+    const features: number[] = [];
+    t.session.onFeatures((f) => features.push(f.rms));
+    return { ...t, features };
+  }
+
+  /** What an adapter still delivers after the failure: late results of the failed session. */
+  function lateResults(input: FakeSoundInput) {
+    input.emitScores(2000, [['Music', 0.95]]);
+    input.emitScores(2500, [['Music', 0.95]]);
+    input.emitFeatures({ rms: 0.9 });
+  }
+
+  it('a bare adapter error releases capture and clears the current detection', async () => {
+    const { input, session, features } = await hearingSpeech();
+    input.emit('error', { message: 'Inference failed: interpreter error' });
+    const snap = session.getSnapshot();
+    expect(input.stopCalls).toBe(1);
+    expect(snap.capture.status).toBe('idle');
+    expect(snap.error).toBe('Inference failed: interpreter error');
+    expect(snap.tracker.current.kind).toBe('none');
+    expect(snap.tracker.events.map((e) => e.category)).toEqual(['speech']); // history only
+
+    lateResults(input);
+    const after = session.getSnapshot();
+    expect(after.tracker.current.kind).toBe('none');
+    expect(after.tracker.events).toHaveLength(1);
+    expect(after.diagnostics.inferenceCount).toBe(3);
+    expect(features).toEqual([]);
+  });
+
+  it('reports `stopping`, not a healthy microphone, while the failed capture is released', async () => {
+    const { input, session } = await hearingSpeech();
+    const teardown = gate();
+    input.stopGate = teardown.promise;
+    input.emit('error', { message: 'Audio conversion failed: -50' });
+    expect(session.getSnapshot().capture.status).toBe('stopping');
+    expect(session.getSnapshot().tracker.current.kind).toBe('none');
+    input.stopGate = null;
+    teardown.open();
+    await settle();
+    expect(session.getSnapshot().capture.status).toBe('idle');
+    expect(session.getSnapshot().error).toBe('Audio conversion failed: -50');
+  });
+
+  it("an adapter's terminal error state ends the session without a second stop", async () => {
+    const { input, session, features } = await hearingSpeech();
+    input.setState({ ...IDLE_CAPTURE_STATE, status: 'error', error: 'Inference failed: bad tensor' });
+    expect(input.stopCalls).toBe(0);
+    expect(session.getSnapshot().error).toBe('Inference failed: bad tensor');
+    expect(session.getSnapshot().tracker.current.kind).toBe('none');
+    lateResults(input);
+    expect(session.getSnapshot().tracker.events).toHaveLength(1);
+    expect(features).toEqual([]);
+  });
+
+  it('only the first failure counts; repeated errors do not stop again', async () => {
+    const { input, session } = await hearingSpeech();
+    input.emit('error', { message: 'Inference failed: first' });
+    input.emit('error', { message: 'Inference failed: second' });
+    await settle();
+    expect(input.stopCalls).toBe(1);
+    expect(session.getSnapshot().error).toBe('Inference failed: first');
+  });
+
+  it('an explicit start after a failure clears the error and runs exactly one new session', async () => {
+    const { input, session } = await hearingSpeech();
+    input.emit('error', { message: 'Inference failed' });
+    await settle();
+    await session.start();
+    const snap = session.getSnapshot();
+    expect(snap.error).toBeNull();
+    expect(snap.capture.status).toBe('listening');
+    expect(input.startCalls).toBe(2);
+    expect(snap.tracker.events).toHaveLength(0); // a new session starts a new list
+    input.emitScores(0, [['Music', 0.9]]);
+    input.emitScores(500, [['Music', 0.9]]);
+    expect(session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', category: 'music' });
+  });
+
+  it('a retry waits for the failed session to be released before opening capture', async () => {
+    const { input, session } = await hearingSpeech();
+    const teardown = gate();
+    input.stopGate = teardown.promise;
+    input.emit('error', { message: 'Inference failed' });
+    const retry = session.start();
+    await settle();
+    expect(input.startCalls).toBe(1);
+    input.stopGate = null;
+    teardown.open();
+    await retry;
+    expect(input.startCalls).toBe(2);
+    expect(session.getSnapshot().capture.status).toBe('listening');
+    expect(session.getSnapshot().error).toBeNull();
+  });
+
+  it('a late failure of an old stop cannot overwrite the retried session', async () => {
+    const { input, session } = await hearingSpeech();
+    const teardown = gate();
+    input.stop = async () => {
+      input.stopCalls++;
+      await teardown.promise;
+      throw new Error('late stop failure');
+    };
+    const stopping = session.stop();
+    const retry = session.start();
+    await settle();
+    expect(input.startCalls).toBe(1); // still waiting for the old teardown
+    teardown.open();
+    await Promise.all([stopping, retry]);
+    expect(input.startCalls).toBe(2);
+    expect(session.getSnapshot().capture.status).toBe('listening');
+    expect(session.getSnapshot().error).toBeNull();
+  });
+
+  it('an error after an explicit stop is ignored', async () => {
+    const { input, session } = await hearingSpeech();
+    await session.stop();
+    input.emit('error', { message: 'Inference failed: late' });
+    input.setState({ ...IDLE_CAPTURE_STATE, status: 'error', error: 'late' });
+    expect(session.getSnapshot().error).toBeNull();
+    expect(input.stopCalls).toBe(1);
+  });
+
+  it('stopping clears the current detection but keeps the timeline', async () => {
+    const { session } = await hearingSpeech();
+    await session.stop();
+    expect(session.getSnapshot().tracker.current.kind).toBe('none');
+    expect(session.getSnapshot().tracker.events).toHaveLength(1);
+  });
+});
+

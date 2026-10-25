@@ -98,6 +98,19 @@ class SessionGateTest {
   }
 
   @Test
+  fun `a late failure of an old session cannot close a newer one`() {
+    val gate = SessionGate()
+    val old = gate.open()
+    gate.close()
+    val current = gate.open()
+    assertFalse(gate.close(old))
+    assertTrue(gate.isCurrent(current))
+    assertTrue(gate.close(current))
+    assertFalse(gate.isCurrent(current))
+    assertFalse(gate.close(current))
+  }
+
+  @Test
   fun `no emission can slip in after close returns`() {
     val gate = SessionGate()
     val epoch = gate.open()

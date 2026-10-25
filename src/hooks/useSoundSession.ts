@@ -1,7 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
-import { ListeningController } from '../core/listeningController';
+import { isForegroundAppState, ListeningController } from '../core/listeningController';
 import { SoundSession } from '../core/soundSession';
 import type { AudioFeatures } from '../core/types';
 import { createSoundInput } from '../native/createSoundInput';
@@ -35,16 +35,16 @@ export function useSoundSession(initialListening: boolean, persistListening: (on
 
   useEffect(() => session.onFeatures((f) => (featuresRef.current = f)), [session]);
 
-  const listening = snapshot.capture.status === 'listening';
+  const listening = snapshot.capture.status === 'listening' && snapshot.error === null;
   useEffect(() => {
     if (!listening) featuresRef.current = null;
   }, [listening]);
 
   // Foreground-only: leaving the app (or an inactive system sheet) and unmounting release the
-  // microphone without touching the user's intent.
+  // microphone without touching the user's intent. Only `active` counts, at launch too.
   useEffect(() => {
-    controller.setForeground(AppState.currentState !== 'background');
-    const sub = AppState.addEventListener('change', (state) => controller.setForeground(state === 'active'));
+    controller.setForeground(isForegroundAppState(AppState.currentState));
+    const sub = AppState.addEventListener('change', (state) => controller.setForeground(isForegroundAppState(state)));
     return () => {
       sub.remove();
       controller.setForeground(false);

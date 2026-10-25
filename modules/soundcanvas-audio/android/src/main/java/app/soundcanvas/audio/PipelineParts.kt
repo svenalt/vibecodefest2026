@@ -84,6 +84,14 @@ class SessionGate {
     epoch++
   }
 
+  /** Closes only if [sessionEpoch] is still the live session. False if it already ended. */
+  fun close(sessionEpoch: Int): Boolean = synchronized(lock) {
+    if (!active || sessionEpoch != epoch) return@synchronized false
+    active = false
+    epoch++
+    true
+  }
+
   fun isCurrent(sessionEpoch: Int): Boolean = synchronized(lock) { active && sessionEpoch == epoch }
 
   /** Runs [emit] only while [sessionEpoch] is the live session. Keep [emit] non-blocking. */

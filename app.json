@@ -9,14 +9,14 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.soundcanvas.poc",
+      "bundleIdentifier": "ch.auviona.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "AUVIONA uses the microphone only while the app is open and listening is on. Sound is analysed on this iPhone and held in memory just long enough to show labels and artwork; it is never recorded, saved or uploaded.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "app.soundcanvas.poc",
+      "package": "ch.auviona.app",
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],

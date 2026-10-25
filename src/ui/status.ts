@@ -1,3 +1,4 @@
+import type { SaveState } from '../app/preferences';
 import type { Current } from '../core/eventTracker';
 import type { SessionSnapshot } from '../core/soundSession';
 import type { PredictionCategory } from '../core/types';
@@ -10,11 +11,14 @@ export interface MicState {
   label: string;
 }
 
-/** Microphone truth, in priority order. Never reports ON unless capture is actually listening. */
+/**
+ * Microphone truth, in priority order. Never reports ON unless capture is actually listening, and
+ * a failure wins over a capture that has not finished stopping yet.
+ */
 export function micState(snapshot: SessionSnapshot, busy: boolean): MicState {
   const { status } = snapshot.capture;
-  if (status === 'listening') return { kind: 'on', label: 'Microphone ON' };
   if (status === 'error' || snapshot.error !== null) return { kind: 'error', label: 'Microphone error' };
+  if (status === 'listening') return { kind: 'on', label: 'Microphone ON' };
   if (snapshot.permission === 'denied') return { kind: 'blocked', label: 'Microphone blocked' };
   if (status === 'stopping') return { kind: 'stopping', label: 'Microphone stopping…' };
   if (status === 'starting' || busy) return { kind: 'starting', label: 'Microphone starting…' };
@@ -90,4 +94,32 @@ export function immersiveCard(
   hasPrediction: boolean,
 ): SoundSummary | null {
   return presentation === 'sounds' ? soundSummary(mic, current, hasPrediction) : null;
+}
+
+/**
+ * The line under Start/Stop in Settings. It only promises that a Stop lasts across restarts once
+ * that choice is actually stored.
+ */
+export function listeningHint(listeningOn: boolean, desired: boolean, save: SaveState): string {
+  if (listeningOn) return 'Listening is on. It pauses whenever you leave AUVIONA and resumes when you come back.';
+  if (desired) return 'Listening is not running right now. Start listening to try again.';
+  if (save === 'saved') {
+    return 'Listening is off. It stays off, even after you leave or restart AUVIONA, until you start it again.';
+  }
+  if (save === 'saving') return 'Listening is off. Saving this choice for the next launch…';
+  return 'Listening is off for now.';
+}
+
+/**
+ * Shown with a Retry action when the latest settings could not be stored. `launchListening` is
+ * what the next launch would do with what storage holds.
+ */
+export function saveNotice(save: SaveState, listening: boolean, launchListening: boolean): string | null {
+  if (save !== 'failed') return null;
+  if (listening !== launchListening) {
+    return listening
+      ? 'Listening is on, but this choice could not be saved for the next launch.'
+      : 'Listening is stopped, but this choice could not be saved for the next launch.';
+  }
+  return 'Your settings could not be saved for the next launch.';
 }

@@ -18,7 +18,7 @@ vi.mock('react-native', () => ({
 vi.mock('expo', () => ({ requireOptionalNativeModule: () => host.native }));
 // expo-asset copies the bundled model into the app cache and returns that file.
 vi.mock('./modelAsset', () => ({
-  resolveModelPath: async () => '/data/user/0/app.soundcanvas.poc/cache/ExponentAsset-yamnet.tflite',
+  resolveModelPath: async () => '/data/user/0/ch.auviona.app/cache/ExponentAsset-yamnet.tflite',
 }));
 
 const LISTENING_48K: Partial<CaptureState> & { status: 'listening' } = {
@@ -44,7 +44,7 @@ describe('createSoundInput on Android', () => {
     await input.start();
     await input.stop();
     expect(fake.calls).toEqual([
-      'start:/data/user/0/app.soundcanvas.poc/cache/ExponentAsset-yamnet.tflite',
+      'start:/data/user/0/ch.auviona.app/cache/ExponentAsset-yamnet.tflite',
       'stop',
     ]);
   });
@@ -93,7 +93,7 @@ describe('createSoundInput on Android', () => {
     await session.start();
     expect(fake.calls).toEqual([
       'requestPermission',
-      'start:/data/user/0/app.soundcanvas.poc/cache/ExponentAsset-yamnet.tflite',
+      'start:/data/user/0/ch.auviona.app/cache/ExponentAsset-yamnet.tflite',
     ]);
     expect(session.getSnapshot().permission).toBe('granted');
   });

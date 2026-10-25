@@ -303,3 +303,49 @@ Supersedes the Motion setting (REQ-004/006/008), the Settings > Diagnostics grou
 
 - `npm run typecheck` and `npm test` pass. New tests: legacy `viz` parsing and migration, `vizModeFor`, `immersiveCard`, and source checks for the Settings groups and the overlay (`src/ui/settingsLayout.test.ts`), since the node test environment cannot mount React Native screens.
 - **Not run on a device**: iOS smoke test, Reduce Motion on/off, legacy upgrade with `viz: 'off'`, Dark/Light, large text and VoiceOver/TalkBack. Android awaits the REQ-009 device gates.
+
+# REQ-011 Audio recovery, reliable Stop persistence and release configuration notes
+
+Last updated: 2026-10-25, from main `0a0edc1`. Implemented and covered by automated tests; **not device-verified and not owner-accepted yet**. The REQ-001–010 device acceptance is unchanged.
+
+## P0-A fatal audio failures
+
+- iOS `AudioPipeline.fail(epoch, message)` is the single path for conversion, inference, interruption and route-change failures. It invalidates the session under `stateLock` (so the tap, processing and inference queues drop everything from then on), then tears down on a global queue under the lifecycle lock and emits `stopping` and a terminal `error` state. It never waits on the queue it is called from. `failedEpoch` lets a `stop()` or `start()` that gets the lock first take over the teardown; an old session's failure cannot touch a newer one. The `error` sink is gone; `onError` stays declared in the module for the shared contract.
+- Android already tore down on the lifecycle thread. It now closes only its own gate epoch at the moment of failure (`SessionGate.close(epoch)`) and reports `stopping` and a terminal `error` state instead of `idle` plus `onError`.
+- `SoundSession` has a per-session `active` flag and a generation bumped by every start, stop and failure. A failure (terminal `error` state, a bare `error` event, or a model-contract violation in JS) ends the session: later classifications, features and errors are dropped, the current detection is cleared (`EventTracker.endSession`, timeline kept), the capture shows `stopping` until released, and a late stop result cannot overwrite a newer session. `start()` waits for any stop still releasing capture.
+- `micState` puts a failure before `listening`, and `SessionProvider`/`useSoundSession` treat a failed session as not listening, so Live, Settings and immersive Art + Sounds show the problem, not a sound, and no haptic or feature frame follows.
+- No automatic retry. Start retries once; a return to the foreground also retries once, as interruptions did since REQ-008.
+
+## P0-B asynchronous Stop
+
+- `ListeningController` keeps the start and stop promises it issued, sets `recheck` when the inputs change while one is in flight, and reconciles once more only when the last one settles. A start waits while capture is `stopping` (also a native-initiated teardown) via a session subscription. `ListeningIntent` gains `stopping`.
+- `setForeground` ignores repeated values; `isForegroundAppState` accepts only `active`, also at launch (`useSoundSession`).
+
+## P1-C Stop persistence
+
+- `PreferencesStore` keeps a revision counter and writes only the latest preferences, one write at a time, with up to two retries (`SAVE_RETRY_DELAYS_MS`), a 3 s "no answer" report that never starts a racing write, `getSaveState()` (`saved`/`saving`/`failed`), `getLaunchListening()` (what the next launch would read) and `retrySave()`. `PreferencesProvider` exposes them and retries a failed save when the app goes to the background.
+- Settings: `listeningHint` only promises a lasting Stop when it is saved; `saveNotice` shows "Listening is stopped, but this choice could not be saved for the next launch." with **Retry**. The in-memory intent and the microphone are never changed by a failed save.
+- Restart strategy and remaining limit: see the release checklist ("REQ-011 failure recovery and Stop persistence").
+
+## P0-D identity and links
+
+- `app.json`: `ch.auviona.app` for iOS and Android. EAS project, `1.0.0` and remote build numbers unchanged. The gitignored local `android/` was regenerated with `expo prebuild --platform android --no-install` (`MainActivity`/`MainApplication` now under `ch/auviona/app`).
+- `release.ts`: `PRIVACY_POLICY_URL = https://auviona.swarmz.cloud/privacy`, `SUPPORT_URL = https://auviona.swarmz.cloud/support` (canonical URLs from the live footer and `<link rel="canonical">`), `PRE_RELEASE = false`, haptics kept.
+- The live pages' wording is still pre-release (see the release checklist); that is website content for the owner, not app configuration.
+
+## Verification
+
+Run on the development Mac (macOS 12, Command Line Tools only, Node 24, JDK 21) on 2026-10-25:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm test` | PASS, 208 tests in 18 files (before: 167 in 17) |
+| `npm run verify-model` | PASS, both SHA-256 match |
+| Mutation check | Reverting only `soundSession.ts`: all 9 new session tests fail. Reverting only `listeningController.ts`: 5 of 12 new controller tests fail |
+| Kotlin `:soundcanvas-audio:testDebugUnitTest` | PASS, 40 tests (39 + epoch-scoped `SessionGate.close`) |
+| Android `:app:assembleDebug` (arm64-v8a) | PASS; `aapt2 dump badging`: `package: name='ch.auviona.app' versionCode='1' versionName='1.0.0'` |
+| `expo prebuild --no-install --platform all` (scratch copy) | PASS; iOS `PRODUCT_BUNDLE_IDENTIFIER = "ch.auviona.app"`, `CFBundleShortVersionString 1.0.0`, no team set; Android `applicationId`/`namespace` `ch.auviona.app` |
+| iOS Swift compile | **Not possible here** (no Xcode / iOS SDK). `swiftc -typecheck` of `AudioPipeline.swift` + `WindowBuffer.swift` + `FeatureExtractor.swift` against the macOS SDK with a stub `YamnetClassifier` reports only the 13 `AVAudioSession … unavailable in macOS` errors that the unchanged file also reports, and nothing else. A real Xcode build is still required |
+| Privacy/Support URLs | `curl` over HTTPS: `/privacy` and `/support` answer `307` to the trailing-slash path, then `200 text/html` with the intended pages; canonical links match |
+| Device regression (fault injection, delayed stop, links, fresh install) | **Not run** (no device here) |

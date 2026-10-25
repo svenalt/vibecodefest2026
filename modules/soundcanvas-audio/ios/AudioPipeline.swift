@@ -21,12 +21,15 @@ enum PipelineError: LocalizedError {
 ///   mic -> AVAudioEngine tap -> AVAudioConverter (16 kHz mono float32)
 ///       -> processingQueue: features (every 50 ms) + overlapping window buffer
 ///       -> inferenceQueue: YAMNet (one in flight at a time; extra windows are dropped)
+///
+/// A fatal failure (conversion, inference, interruption, route change) ends the session through
+/// fail(): it is invalidated at once, then torn down off the audio queues, and reported as a
+/// terminal `error` state. Same contract as android/.../AudioPipeline.kt.
 final class AudioPipeline {
   struct Sinks {
     let state: ([String: Any?]) -> Void
     let classification: ([String: Any?]) -> Void
     let features: ([String: Any?]) -> Void
-    let error: (String) -> Void
   }
 
   private static let topK = 10
@@ -39,11 +42,13 @@ final class AudioPipeline {
 
   /// Serializes start/stop. Never taken from the processing or inference queues.
   private let lifecycleLock = NSLock()
-  /// Guards `active`/`epoch` only; held briefly, never while waiting on a queue.
+  /// Guards `active`/`epoch`/`failedEpoch` only; held briefly, never while waiting on a queue.
   private let stateLock = NSLock()
   private let engine = AVAudioEngine()
   private var active = false
   private var epoch = 0
+  /// The session whose failure teardown is still queued; a start or stop that runs first takes it over.
+  private var failedEpoch: Int?
   private var observers: [NSObjectProtocol] = []
 
   private let processingQueue = DispatchQueue(label: "soundcanvas.processing", qos: .userInitiated)
@@ -67,6 +72,8 @@ final class AudioPipeline {
     lifecycleLock.lock()
     defer { lifecycleLock.unlock() }
     guard !isActive else { throw PipelineError.alreadyRunning }
+    // A failed session not torn down yet: release it before opening a new one.
+    if supersedeFailure() { teardownLocked() }
 
     emitState("starting")
     do {
@@ -82,6 +89,7 @@ final class AudioPipeline {
   func stop() {
     lifecycleLock.lock()
     defer { lifecycleLock.unlock() }
+    _ = supersedeFailure()
     emitState("stopping")
     teardownLocked()
     emitState("idle")
@@ -122,7 +130,7 @@ final class AudioPipeline {
     }
     engine.prepare()
     try engine.start()
-    observeInterruptions()
+    observeInterruptions(epoch: myEpoch)
 
     emitState(
       "listening",
@@ -168,7 +176,7 @@ final class AudioPipeline {
       return buffer
     }
     if status == .error {
-      sinks.error("Audio conversion failed: \(conversionError?.localizedDescription ?? "unknown")")
+      fail(tapEpoch, "Audio conversion failed: \(conversionError?.localizedDescription ?? "unknown")")
       return
     }
 
@@ -217,7 +225,7 @@ final class AudioPipeline {
           "top": output.top.map { ["index": $0.index, "label": $0.label, "score": Double($0.score)] },
         ])
       } catch {
-        self.sinks.error("Inference failed: \(error.localizedDescription)")
+        self.fail(tapEpoch, "Inference failed: \(error.localizedDescription)")
       }
     }
   }
@@ -256,6 +264,35 @@ final class AudioPipeline {
     return active && tapEpoch == epoch
   }
 
+  /// Ends the live session `sessionEpoch` at once, so it emits nothing more. False if it already ended.
+  private func invalidate(_ sessionEpoch: Int) -> Bool {
+    stateLock.lock()
+    defer { stateLock.unlock() }
+    guard active && sessionEpoch == epoch else { return false }
+    active = false
+    epoch += 1
+    failedEpoch = sessionEpoch
+    return true
+  }
+
+  /// Claims the queued failure teardown of `sessionEpoch`. False if a start or stop took it over.
+  private func takeFailure(_ sessionEpoch: Int) -> Bool {
+    stateLock.lock()
+    defer { stateLock.unlock() }
+    guard failedEpoch == sessionEpoch else { return false }
+    failedEpoch = nil
+    return true
+  }
+
+  /// A start or stop is about to tear down anyway; the queued failure teardown must not run after it.
+  private func supersedeFailure() -> Bool {
+    stateLock.lock()
+    defer { stateLock.unlock() }
+    let pending = failedEpoch != nil
+    failedEpoch = nil
+    return pending
+  }
+
   // MARK: - State and interruptions
 
   private func emitState(
@@ -271,7 +308,7 @@ final class AudioPipeline {
     ])
   }
 
-  private func observeInterruptions() {
+  private func observeInterruptions(epoch sessionEpoch: Int) {
     let center = NotificationCenter.default
     observers.append(
       center.addObserver(
@@ -279,13 +316,13 @@ final class AudioPipeline {
       ) { [weak self] note in
         let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
         if raw == AVAudioSession.InterruptionType.began.rawValue {
-          self?.failAsync("Audio was interrupted (for example by a call). Start listening again.")
+          self?.fail(sessionEpoch, "Audio was interrupted (for example by a call). Start listening again.")
         }
       })
     observers.append(
       center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) {
         [weak self] _ in
-        self?.failAsync("The audio route changed. Start listening again.")
+        self?.fail(sessionEpoch, "The audio route changed. Start listening again.")
       })
   }
 
@@ -294,12 +331,22 @@ final class AudioPipeline {
     observers.removeAll()
   }
 
-  /// Observer callbacks must not hold the lifecycle lock while we re-enter stop().
-  private func failAsync(_ message: String) {
+  /// The one fatal-failure path, callable from any thread (tap, processing or inference queue,
+  /// notification observers). Only the first failure of the live session counts, and it stops
+  /// all further results immediately. Teardown waits on the processing and inference queues, so
+  /// it runs on another queue under the lifecycle lock; a failure raised on those queues therefore
+  /// never waits on itself. A stop or start that gets the lock first does the teardown instead,
+  /// and a failure of an old session can never stop a newer one.
+  private func fail(_ sessionEpoch: Int, _ message: String) {
+    guard invalidate(sessionEpoch) else { return }
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       guard let self = self else { return }
-      self.stop()
-      self.sinks.error(message)
+      self.lifecycleLock.lock()
+      defer { self.lifecycleLock.unlock() }
+      guard self.takeFailure(sessionEpoch) else { return }
+      self.emitState("stopping")
+      self.teardownLocked()
+      self.emitState("error", error: message)
     }
   }
 }

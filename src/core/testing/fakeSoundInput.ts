@@ -27,6 +27,10 @@ export class FakeSoundInput implements SoundInput {
   permissionGate: Promise<void> | null = null;
   /** When set, start() reports `starting` and waits for it, like a slow model load. */
   startGate: Promise<void> | null = null;
+  /** When set, stop() waits for it before reporting idle, like a slow native teardown. */
+  stopGate: Promise<void> | null = null;
+  /** With stopGate: also report the native `stopping` state while waiting. */
+  reportStopping = false;
 
   private readonly emitter = new SoundInputEmitter();
 
@@ -65,6 +69,10 @@ export class FakeSoundInput implements SoundInput {
 
   async stop(): Promise<void> {
     this.stopCalls++;
+    if (this.stopGate) {
+      if (this.reportStopping) this.setState({ ...this.state, status: 'stopping' });
+      await this.stopGate;
+    }
     this.setState(IDLE_CAPTURE_STATE);
   }
 
@@ -107,9 +115,9 @@ export function gate(): { promise: Promise<void>; open: () => void } {
   return { promise, open };
 }
 
-/** Lets every pending promise callback run. */
+/** Lets every pending promise callback run (a macrotask turn drains the whole microtask queue). */
 export async function settle(): Promise<void> {
-  for (let i = 0; i < 10; i++) await Promise.resolve();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 export function fakeClassification(

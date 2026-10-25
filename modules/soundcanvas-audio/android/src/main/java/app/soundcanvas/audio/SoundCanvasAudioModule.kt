@@ -17,13 +17,14 @@ class SoundCanvasAudioModule : Module() {
         state = { sendEvent("onState", it) },
         classification = { sendEvent("onClassification", it) },
         features = { sendEvent("onFeatures", it) },
-        error = { sendEvent("onError", mapOf("message" to it)) },
       ),
     ).also { pipeline = it }
 
   override fun definition() = ModuleDefinition {
     Name("SoundCanvasAudio")
 
+    // Fatal failures arrive as a terminal onState `error` (after teardown). onError stays in the
+    // shared contract and is treated as fatal by the JS session.
     Events("onState", "onClassification", "onFeatures", "onError")
 
     // Expo's permission service reports "undetermined" until it has asked once, then "denied" for

@@ -8,15 +8,20 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import { View } from 'react-native';
+import { AppState, View } from 'react-native';
 
 import { primeReduceMotion } from '../hooks/useReduceMotion';
 import { deviceKeyValueStore } from '../native/keyValueStore';
-import { PreferencesStore, type Preferences } from './preferences';
+import { PreferencesStore, type Preferences, type SaveState } from './preferences';
 
 interface PreferencesValue {
   prefs: Preferences;
   update: (patch: Partial<Preferences>) => void;
+  /** Whether `prefs` are stored for the next launch (REQ-011 P1-C). */
+  save: SaveState;
+  /** The listening intent the next launch would read from storage. */
+  launchListening: boolean;
+  retrySave: () => void;
 }
 
 const PreferencesContext = createContext<PreferencesValue | null>(null);
@@ -43,8 +48,27 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     };
   }, [store]);
 
+  // Leaving the app is the last good moment to store a choice that could not be saved yet.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' && store.getSaveState() === 'failed') store.retrySave();
+    });
+    return () => sub.remove();
+  }, [store]);
+
   const prefs = useSyncExternalStore(store.subscribe, store.get);
-  const value = useMemo<PreferencesValue>(() => ({ prefs, update: (patch) => store.update(patch) }), [prefs, store]);
+  const save = useSyncExternalStore(store.subscribe, store.getSaveState);
+  const launchListening = useSyncExternalStore(store.subscribe, store.getLaunchListening);
+  const value = useMemo<PreferencesValue>(
+    () => ({
+      prefs,
+      update: (patch) => store.update(patch),
+      save,
+      launchListening,
+      retrySave: () => store.retrySave(),
+    }),
+    [prefs, save, launchListening, store],
+  );
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: HYDRATING_BG }} />;
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;

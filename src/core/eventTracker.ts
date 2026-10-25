@@ -129,6 +129,16 @@ export class EventTracker {
     return this.snapshot();
   }
 
+  /**
+   * The session ended (stopped or failed): nothing is being heard any more, so drop the current
+   * detection and its smoothing window. The timeline stays, as history of what was heard.
+   */
+  endSession(): void {
+    this.window = [];
+    this.current = { kind: 'none', sinceMs: 0 };
+    this.lastSupportMs = 0;
+  }
+
   reset(): void {
     this.window = [];
     this.current = { kind: 'none', sinceMs: 0 };

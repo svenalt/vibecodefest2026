@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Current } from '../core/eventTracker';
 import type { SessionSnapshot } from '../core/soundSession';
 import { IDLE_CAPTURE_STATE, type CaptureStatus, type PermissionStatus } from '../core/types';
-import { immersiveCard, micState, soundSummary, type MicKind } from './status';
+import { immersiveCard, listeningHint, micState, saveNotice, soundSummary, type MicKind } from './status';
 
 function snap(status: CaptureStatus, permission: PermissionStatus = 'granted', error: string | null = null): SessionSnapshot {
   return {
@@ -32,6 +32,13 @@ describe('micState', () => {
     expect(micState(snap('starting'), false).kind).toBe('starting');
     expect(micState(snap('idle'), true).kind).toBe('starting');
     expect(micState(snap('stopping'), true).kind).toBe('stopping');
+  });
+
+  it('a failure is never shown as a healthy microphone, even before capture reports stopping', () => {
+    expect(micState(snap('listening', 'granted', 'Inference failed'), false).kind).toBe('error');
+    expect(micState(snap('stopping', 'granted', 'Inference failed'), true).kind).toBe('error');
+    const card = immersiveCard('sounds', micState(snap('listening', 'granted', 'Inference failed'), false).kind, speech, true);
+    expect(card).toMatchObject({ category: null, title: 'Listening stopped', tone: 'alert' });
   });
 
   it('distinguishes blocked permission from capture errors', () => {
@@ -108,3 +115,30 @@ describe('immersiveCard', () => {
     }
   });
 });
+
+/** REQ-011 P1-C: never claim a Stop survives a restart before it is stored. */
+describe('listening persistence copy', () => {
+  it('promises a lasting Stop only once it is saved', () => {
+    expect(listeningHint(false, false, 'saved')).toMatch(/stays off, even after you leave or restart/);
+    for (const save of ['saving', 'failed'] as const) {
+      expect(listeningHint(false, false, save)).not.toMatch(/restart|stays off/);
+    }
+    expect(listeningHint(false, false, 'saving')).toMatch(/Saving/);
+  });
+
+  it('does not call a failed or interrupted session "off"', () => {
+    expect(listeningHint(false, true, 'saved')).toMatch(/not running right now/);
+    expect(listeningHint(true, true, 'failed')).toMatch(/Listening is on/);
+  });
+
+  it('explains an unsaved Stop plainly, and nothing once saved', () => {
+    expect(saveNotice('failed', false, true)).toBe(
+      'Listening is stopped, but this choice could not be saved for the next launch.',
+    );
+    expect(saveNotice('failed', true, false)).toMatch(/Listening is on, but/);
+    expect(saveNotice('failed', false, false)).toBe('Your settings could not be saved for the next launch.');
+    expect(saveNotice('saving', false, true)).toBeNull();
+    expect(saveNotice('saved', false, true)).toBeNull();
+  });
+});
+

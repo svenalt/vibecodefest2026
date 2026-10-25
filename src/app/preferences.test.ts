@@ -129,8 +129,9 @@ describe('PreferencesStore', () => {
     let calls = 0;
     store.subscribe(() => calls++);
     await store.hydrate();
+    expect(calls).toBe(1);
     store.update({ hapticAlerts: true });
-    expect(calls).toBe(2);
+    expect(calls).toBeGreaterThan(1);
   });
 
   it('a failed write keeps the in-memory value and later writes still run', async () => {
@@ -143,11 +144,12 @@ describe('PreferencesStore', () => {
         return kv.setItem(k, v);
       },
     };
-    const store = new PreferencesStore(flaky);
+    const store = new PreferencesStore(flaky, { retryDelaysMs: [] });
     await store.hydrate();
     store.update({ listening: false });
     await store.flush();
     expect(store.get().listening).toBe(false);
+    expect(store.getSaveState()).toBe('failed');
     fail = false;
     store.update({ theme: 'light' });
     await store.flush();
@@ -177,3 +179,178 @@ describe('PreferencesStore', () => {
     expect(store.get().listening).toBe(false);
   });
 });
+
+/** REQ-011 P1-C: whether a Stop really reached storage must be observable, and never claimed early. */
+describe('PreferencesStore save state', () => {
+  const STOP_NOT_SAVED = { retryDelaysMs: [1, 1] };
+
+  /** Storage whose writes can be made to fail, hang or answer late; it records what landed. */
+  function controllableKv(initial?: string) {
+    const kv = memoryKv(initial);
+    let mode: 'ok' | 'fail' | 'hang' = 'ok';
+    const attempts: string[] = [];
+    const held: Array<() => void> = [];
+    const store: KeyValueStore = {
+      getItem: kv.getItem,
+      setItem: (k, v) => {
+        attempts.push(v);
+        if (mode === 'fail') return Promise.reject(new Error('disk full'));
+        if (mode === 'hang') return new Promise(() => {});
+        return new Promise<void>((resolve) => held.push(() => void kv.setItem(k, v).then(resolve)));
+      },
+    };
+    const listeningOnDisk = () => parsePreferences(kv.data.get(PREFERENCES_KEY) ?? null).prefs.listening;
+    /** Lets every write that reaches storage complete, in order, until no more arrive. */
+    const release = async () => {
+      for (let idle = 0; idle < 3; idle++) {
+        if (held.length) {
+          idle = -1;
+          held.shift()!();
+        }
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    };
+    return { kv, store, attempts, setMode: (m: typeof mode) => (mode = m), listeningOnDisk, release };
+  }
+
+  const stored = (listening: boolean) => serializePreferences({ ...DEFAULT_PREFERENCES, listening });
+
+  it('reports saving until the write completes, then saved', async () => {
+    const c = controllableKv(stored(true));
+    const store = new PreferencesStore(c.store);
+    await store.hydrate();
+    expect(store.getSaveState()).toBe('saved');
+    store.update({ listening: false });
+    expect(store.get().listening).toBe(false);
+    expect(store.getSaveState()).toBe('saving'); // not claimed before storage answers
+    await c.release();
+    await store.flush();
+    expect(store.getSaveState()).toBe('saved');
+    expect(c.listeningOnDisk()).toBe(false);
+  });
+
+  it('a failing Stop is retried a bounded number of times, then reported, never undone', async () => {
+    const c = controllableKv(stored(true));
+    c.setMode('fail');
+    const store = new PreferencesStore(c.store, STOP_NOT_SAVED);
+    await store.hydrate();
+    store.update({ listening: false });
+    await store.flush();
+    expect(c.attempts).toHaveLength(3);
+    expect(store.getSaveState()).toBe('failed');
+    expect(store.get().listening).toBe(false);
+    expect(store.getLaunchListening()).toBe(true);
+
+    // Honest limitation: a restart now still sees the old stored value.
+    const restarted = new PreferencesStore(c.kv);
+    await restarted.hydrate();
+    expect(restarted.get().listening).toBe(true);
+  });
+
+  it('Retry after a failure stores the Stop, and the next launch stays stopped', async () => {
+    const c = controllableKv(stored(true));
+    c.setMode('fail');
+    const store = new PreferencesStore(c.store, STOP_NOT_SAVED);
+    await store.hydrate();
+    store.update({ listening: false });
+    await store.flush();
+    expect(store.getSaveState()).toBe('failed');
+
+    c.setMode('ok');
+    store.retrySave();
+    expect(store.getSaveState()).toBe('saving');
+    await c.release();
+    await store.flush();
+    expect(store.getSaveState()).toBe('saved'); // no stale error
+    expect(store.getLaunchListening()).toBe(false);
+
+    const restarted = new PreferencesStore(c.kv);
+    expect(await restarted.hydrate()).toBe('stored');
+    expect(restarted.get().listening).toBe(false);
+  });
+
+  it('a hung write is reported as failed and not raced by a second write', async () => {
+    const c = controllableKv(stored(true));
+    c.setMode('hang');
+    const store = new PreferencesStore(c.store, { writeTimeoutMs: 5 });
+    await store.hydrate();
+    store.update({ listening: false });
+    expect(store.getSaveState()).toBe('saving');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(store.getSaveState()).toBe('failed');
+    store.retrySave();
+    store.update({ theme: 'light' });
+    expect(c.attempts).toHaveLength(1);
+    expect(store.get()).toMatchObject({ listening: false, theme: 'light' });
+  });
+
+  it('a write that answers after the timeout still ends as saved', async () => {
+    const c = controllableKv(stored(true));
+    const store = new PreferencesStore(c.store, { writeTimeoutMs: 5 });
+    await store.hydrate();
+    store.update({ listening: false });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(store.getSaveState()).toBe('failed');
+    await c.release();
+    await store.flush();
+    expect(store.getSaveState()).toBe('saved');
+    expect(c.listeningOnDisk()).toBe(false);
+  });
+
+  it('several quick changes are written in order and end with the final Stop', async () => {
+    const c = controllableKv(stored(false));
+    const store = new PreferencesStore(c.store);
+    await store.hydrate();
+    store.update({ listening: true });
+    store.update({ theme: 'light' });
+    store.update({ listening: false });
+    store.update({ listening: true });
+    store.update({ listening: false });
+    await c.release();
+    await store.flush();
+    // The first write was already with storage; everything queued behind it collapses to the latest.
+    expect(c.attempts.map((v) => JSON.parse(v).listening)).toEqual([true, false]);
+    expect(c.listeningOnDisk()).toBe(false);
+    expect(store.getSaveState()).toBe('saved');
+  });
+
+  it('an old write that fails cannot leave a newer Stop unsaved', async () => {
+    const c = controllableKv(stored(true));
+    c.setMode('fail');
+    const store = new PreferencesStore(c.store, { retryDelaysMs: [] });
+    await store.hydrate();
+    store.update({ theme: 'light' });
+    c.setMode('ok');
+    store.update({ listening: false });
+    await c.release();
+    await store.flush();
+    expect(c.listeningOnDisk()).toBe(false);
+    expect(store.getSaveState()).toBe('saved');
+  });
+
+  it('a new change after a failure starts a fresh bounded attempt', async () => {
+    const c = controllableKv(stored(true));
+    c.setMode('fail');
+    const store = new PreferencesStore(c.store, { retryDelaysMs: [] });
+    await store.hydrate();
+    store.update({ listening: false });
+    await store.flush();
+    expect(store.getSaveState()).toBe('failed');
+    c.setMode('ok');
+    store.update({ theme: 'light' });
+    await c.release();
+    await store.flush();
+    expect(store.getSaveState()).toBe('saved');
+    expect(c.listeningOnDisk()).toBe(false);
+  });
+
+  it('unreadable stored data still starts with listening off and needs no write', async () => {
+    const c = controllableKv('{"v":1,"listening":tr');
+    const store = new PreferencesStore(c.store);
+    expect(await store.hydrate()).toBe('recovered');
+    expect(store.get().listening).toBe(false);
+    expect(store.getSaveState()).toBe('saved');
+    expect(c.attempts).toHaveLength(0);
+  });
+});
+
