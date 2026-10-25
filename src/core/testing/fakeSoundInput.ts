@@ -22,6 +22,11 @@ export class FakeSoundInput implements SoundInput {
   state: CaptureState = IDLE_CAPTURE_STATE;
   startCalls = 0;
   stopCalls = 0;
+  requestCalls = 0;
+  /** When set, requestPermission() waits for it, like a system prompt the user has not answered yet. */
+  permissionGate: Promise<void> | null = null;
+  /** When set, start() reports `starting` and waits for it, like a slow model load. */
+  startGate: Promise<void> | null = null;
 
   private readonly emitter = new SoundInputEmitter();
 
@@ -35,12 +40,18 @@ export class FakeSoundInput implements SoundInput {
   }
 
   async requestPermission(): Promise<PermissionStatus> {
+    this.requestCalls++;
+    if (this.permissionGate) await this.permissionGate;
     this.permission = this.nextPermissionAnswer;
     return this.permission;
   }
 
   async start(): Promise<void> {
     this.startCalls++;
+    if (this.startGate) {
+      this.setState({ ...IDLE_CAPTURE_STATE, status: 'starting' });
+      await this.startGate;
+    }
     this.setState({
       status: 'listening',
       hardwareSampleRate: 48000,
@@ -87,6 +98,18 @@ export class FakeSoundInput implements SoundInput {
       ...partial,
     });
   }
+}
+
+/** A promise plus its resolver, for holding a fake prompt or start-up open in tests. */
+export function gate(): { promise: Promise<void>; open: () => void } {
+  let open!: () => void;
+  const promise = new Promise<void>((resolve) => (open = resolve));
+  return { promise, open };
+}
+
+/** Lets every pending promise callback run. */
+export async function settle(): Promise<void> {
+  for (let i = 0; i < 10; i++) await Promise.resolve();
 }
 
 export function fakeClassification(

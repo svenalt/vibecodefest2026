@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SoundSession } from './soundSession';
-import { FakeSoundInput } from './testing/fakeSoundInput';
+import { FakeSoundInput, gate, settle } from './testing/fakeSoundInput';
 import type { Platform } from './types';
 
 function setup(platform: Platform = 'ios') {
@@ -144,6 +144,58 @@ describe('SoundSession lifecycle', () => {
     input.emitFeatures({ rms: 0.5 });
     expect(seen).toEqual([0.5]);
     expect(session.getSnapshot()).toBe(before);
+  });
+
+  it('stop() during the permission prompt cancels the start', async () => {
+    const { input, session } = setup();
+    input.permission = 'undetermined';
+    const prompt = gate();
+    input.permissionGate = prompt.promise;
+    const starting = session.start();
+    await settle();
+    await session.stop();
+    prompt.open();
+    await starting;
+    expect(input.startCalls).toBe(0);
+    expect(session.getSnapshot().permission).toBe('granted');
+    expect(session.getSnapshot().capture.status).toBe('idle');
+  });
+
+  it('stop() during capture start-up releases the microphone once start-up finishes', async () => {
+    const { input, session } = setup();
+    const startup = gate();
+    input.startGate = startup.promise;
+    const starting = session.start();
+    await settle();
+    expect(session.getSnapshot().capture.status).toBe('starting');
+    await session.stop();
+    startup.open();
+    await starting;
+    expect(input.stopCalls).toBe(2);
+    expect(session.getSnapshot().capture.status).toBe('idle');
+  });
+
+  it('a later start after a cancelled one still works', async () => {
+    const { input, session } = setup();
+    input.permission = 'undetermined';
+    const prompt = gate();
+    input.permissionGate = prompt.promise;
+    const cancelled = session.start();
+    await session.stop();
+    prompt.open();
+    await cancelled;
+    await session.start();
+    expect(session.getSnapshot().capture.status).toBe('listening');
+  });
+
+  it('surfaces a failing permission check as an error', async () => {
+    const { input, session } = setup();
+    input.getPermission = async () => {
+      throw new Error('Audio session unavailable');
+    };
+    await session.start();
+    expect(session.getSnapshot().error).toBe('Audio session unavailable');
+    expect(input.startCalls).toBe(0);
   });
 
   it('notifies subscribers and stops after dispose', async () => {

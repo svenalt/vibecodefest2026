@@ -142,3 +142,134 @@ Already delivered by commit `4285d03` and verified against REQ-007: Live is the 
 - iPhone 13 Pro Max screenshots of Dark Live, Light Live and Dark immersive, and a recording of the motion during real speech, taps and music: **not taken**.
 - Whether a quiet voice in a quiet room produces visible deformation at real microphone levels (tuned on synthetic inputs only).
 - Frame rate, memory (one `SkPicture` per frame left to GC) and heat over a 5-10 minute session.
+
+
+# REQ-008 AUVIONA 1.0 release-readiness notes
+
+Last updated: 2026-10-25. Typecheck, 137 unit tests and `verify-model` pass. **Nothing in this section has been built, signed, uploaded or run on an iPhone.** Release gates, the audit and the device QA matrix live in `docs/release/auviona-release-checklist.md`.
+
+## Identity (P0-A)
+
+- `app.json`: name `AUVIONA`, slug and scheme `auviona`, version `1.0.0`, new microphone text (on-device, in memory only, never recorded, saved or uploaded). The bundle/package ID is deliberately still `app.soundcanvas.poc` until the owner confirms the permanent one.
+- Live header (spoken as "Auviona"), the three "Microphone access is turned off" notices and About now say AUVIONA. No blind replace: internal module, pod, component and package names are unchanged.
+
+## Listening intent (P0-C)
+
+- `src/core/listeningController.ts` keeps the user's **desired** listening separate from actual capture. Capture runs only while desired AND foreground. Leaving the foreground (background, or iOS's inactive state during system sheets) and unmount release the microphone without touching `desired`; only Start/Stop change it, and they persist it at once.
+- `SoundSession.stop()` now cancels a start that is still in flight (generation counter): a stop during the permission prompt prevents capture from opening, and a stop during capture start-up releases it as soon as start-up finishes. A start that settles after the inputs changed triggers one more reconcile, so the last state wins. A failed start is not retried in a loop.
+- The Settings button offers **Stop** while a start is in flight, so a pending start can be cancelled. A hint under it explains the auto-resume rule.
+- Permission is requested only from a start, and a start runs only while listening is desired. With listening off, foregrounding never prompts.
+
+## Preferences (P1-A, also stores the P0-C intent)
+
+- `src/app/preferences.ts`: one JSON entry (`auviona.preferences`, versioned) in AsyncStorage holding theme, `viz` (the user's actual choice; `null` still means follow Reduce Motion), `listening` and `hapticAlerts`. Writes are ordered; a failed write keeps the in-memory value.
+- Recovery is deterministic. Missing key = first install (Dark, follow device, listening **on**, haptics off). Unparsable JSON, wrong version, a read error or a read that hangs past 1.5 s = defaults with listening **off**, so a persisted Stop can never turn into an auto-start. Invalid single fields fall back per field, and an invalid `listening` means off.
+- `PreferencesProvider` renders a plain Dark-background view until the read finishes, so there is no wrong-theme flash, animation burst or early auto-start.
+
+## Haptic alerts (P1-B)
+
+- Off by default, persisted. When on, `HapticCueGate` plays one medium impact (`expo-haptics`) per **new timeline event**, i.e. after smoothing, debounce and the per-category cooldown, and only while actually listening. Events seen while off, stopped or backgrounded are consumed, never replayed, and cues are at least 4 s apart across categories.
+- iOS mutes haptics while an audio session is recording. `AudioPipeline` now sets `setAllowHapticsAndSystemSoundsDuringRecording(true)` (syntax-checked with `swiftc -parse` only). Whether the cue is felt during capture is **unverified**.
+- `HAPTIC_ALERTS_AVAILABLE` in `src/app/release.ts` shows the setting. Turn it off for a public build unless it was tested on an iPhone.
+
+## Privacy and support (P0-B)
+
+- Settings > About has distinct **Privacy Policy** and **Support** links (role `link`, 56 pt targets, both themes) and the app version. `openPublicPage` accepts only `https://` URLs and never throws; an unpublished page or a failed open shows a plain alert instead of crashing.
+- `PRIVACY_POLICY_URL` and `SUPPORT_URL` are `null` until the owner confirms a domain and the drafts in `site/` are live.
+
+## New dependencies
+
+`@react-native-async-storage/async-storage` 2.2.0, `expo-haptics` ~58.0.7, `expo-constants` ~58.0.13 (already in the tree via `expo`), all installed with `npx expo install`. `expo-haptics` adds Android's `VIBRATE` permission (no prompt).
+
+# REQ-009 Android native audio and YAMNet notes
+
+Last updated: 2026-10-25, branch `req-009-android-native-audio` from `0315272` on `req-008-auviona-release` (REQ-008 identity, listening intent and preferences are present on this branch; nothing of REQ-008 was changed). **Implemented but native/device validation BLOCKED: no Android device was connected to the development Mac.** Android is not supported until the physical-device gates pass. Design and decisions: `android-adapter.md`.
+
+## Prerequisite check
+
+- HEAD contains REQ-008 (`app.json` name AUVIONA, slug/scheme `auviona`, `ListeningController`, preferences, opt-in haptics). The package ID is still `app.soundcanvas.poc` by the REQ-008 decision.
+- No REQ-008 discrepancy found. `expo-haptics` adds `VIBRATE`; the Kotlin module adds nothing beyond `RECORD_AUDIO` (already in `app.json`) and an optional `android.hardware.microphone` feature.
+
+## Toolchain used
+
+Installed for this work on the development Mac (macOS 12.7.6, Intel x86_64, 8 GB RAM): Temurin JDK 21.0.13+9 (SHA-256 checked) in `~/Library/Java/JavaVirtualMachines`, Android cmdline-tools 15641748 in `~/Library/Android/sdk`, licences accepted. AGP then installed platform `android-37.0`, build-tools 36.0.0 and 37.0.0, NDK 27.1.12297006 and CMake 3.22.1. About 6 GB of disk in total with the Gradle cache.
+
+| Component | Version |
+| --- | --- |
+| Expo SDK / React Native | 58.0.19 / 0.88.0 (`expo-modules-core` 58.0.26, autolinking 58.0.15) |
+| Gradle / AGP / Kotlin | 9.4.1 / 9.2.1 / 2.2 (RN catalog) |
+| compileSdk / targetSdk / minSdk | 37 / 36 / 24 |
+| MediaPipe | `com.google.mediapipe:tasks-audio:1.0.0` (minSdk 24); `tasks-core` 1.0.0 transitively |
+| Model | `yamnet.tflite` SHA-256 `4d8b4a53...4c584faf` (pinned, unchanged) |
+
+Commands (from the repo root, `JAVA_HOME` set to JDK 21, `ANDROID_HOME` to the SDK):
+
+```sh
+npm run typecheck && npm test && npm run verify-model
+npx expo prebuild --platform android --no-install
+npx expo-modules-autolinking resolve --platform android --json
+cd android
+./gradlew --max-workers=2 :soundcanvas-audio:testDebugUnitTest :soundcanvas-audio:assembleDebugAndroidTest \
+  :app:assembleDebug :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+
+The first full debug build took 90 minutes, most of it with three Skia C++ compiles thrashing an 8 GB machine; pausing all but one compiler at a time let them finish in minutes. On a small Mac, use `--max-workers=2` and expect the first native build to be slow.
+
+## Automated gates
+
+| Gate | Status | Notes |
+| --- | --- | --- |
+| `npm run typecheck`, `npm test`, `npm run verify-model` | **PASS** | 152 tests in 16 files (137 before REQ-009); REQ-007/008 suites unchanged and passing |
+| TS bridge: Android native present/absent, permission grant/deny, payloads, errors, start/stop, Expo Go fallback | **PASS** | `src/native/createSoundInput.test.ts` (12), `nativeSoundInput.test.ts`; Expo Go now shows why it cannot listen instead of staying silent |
+| Kotlin pins equal the repo pins | **PASS** | `src/native/nativePins.test.ts` (hashes, window/hop/rate/classes, module config) |
+| Kotlin pure DSP: formats, resampling, 15,600/7,800 windowing, 800-sample features, RMS/peak/bands for silence/tones/noise, finite 0..1, bounded queue, teardown | **PASS** | 39 JUnit tests: `AnalysisConverterTest` (11, incl. 48 and 44.1 kHz, stereo, split frames, NaN, aliasing below -40 dB, passband within 0.5 dB, chunking-independent output, no drift over 60 s), `WindowBufferTest` (5), `FeatureExtractorTest` (5), `AnalysisStreamTest` (1), `InferenceSlotTest` (4), `SessionGateTest` (3), `YamnetContractTest` (10) |
+| 521-class audit before top 10, label parity, ordering, ties, timestamps, epoch cancellation, error propagation | **PASS** (host) | `YamnetContractTest`, `SessionGateTest`, `AnalysisStreamTest`, TS error tests. Runtime behaviour on a device NOT RUN |
+| Fixed fixture vs reference with a stated tolerance | **BLOCKED (device)** | Host reference generated with TensorFlow 2.16.2 (`scripts/gen-yamnet-reference.py`): silence -> Silence 0.80, 440 Hz -> Sine wave 0.996, noise -> Static/White noise, 2 kHz beeps -> Sine wave. Scores are 1/256 steps. `YamnetParityTest` (tolerance 0.02 per score, tie-aware top 1/top 5) compiles; JVM and Python fixture bytes are identical. Needs a device. No iPhone output exists to compare yet |
+| Prebuild/autolinking and full native Gradle debug build | **PASS** | See commands above. Debug APK 115 MB (arm64-v8a) |
+| Release build | **PASS** | 54 MB; model embedded with the pinned hash; required five R8 `-dontwarn` rules (`consumer-rules.pro`) |
+| iOS/Swift path unchanged | **PASS** (by diff) | No file under `modules/soundcanvas-audio/ios/` changed; `expo-module.config.json` keeps `apple.modules`; iOS bridge tests pass. Not rebuilt (no Xcode) |
+
+Found and fixed while building:
+
+- The first Kotlin test compile failed on a `;` in a backticked test name (not allowed on the JVM).
+- The first debug APK contained both the no-op datatransport classes and Google's real library (brought by `expo-dev-client`'s ML Kit QR scanner, debug only) in different dex files, without a build error. The stand-ins and the exclusion are now release-only (`src/noTelemetry/README.md`).
+- R8 failed on missing MediaPipe references until the consumer rules were added.
+- Android's `AudioClassifierOptions` rejects `maxResults = -1` (which iOS uses), so it is left unset.
+
+## Physical-device gates
+
+None of these could run: `adb devices` listed no device on this Mac. Every row is **NOT RUN**. The suggested first target is the Samsung Galaxy Tab A11; record its Android version and hardware, and do not claim phone validation from a tablet.
+
+| Gate | Status | How to run / what to record |
+| --- | --- | --- |
+| Clean install; mic granted / denied / "don't ask again" / revoked; Settings recovery | NOT RUN | Fresh install, deny twice, re-enable in Settings (app details page via "Open system settings"), revoke while backgrounded (Android kills the process; relaunch must show blocked, not listening) |
+| Three real categories (e.g. speech, music, bell / bark / applause / rain) | NOT RUN | Raw label and score in Settings > Diagnostics, timeline entries and visual response |
+| Silence and unknown stay calm | NOT RUN | Quiet room for 2 min: no flood of confident events |
+| Diagnostics: 521 classes, pinned hash, real hardware format, 16 kHz mono analysis | NOT RUN | Diagnostics + `adb logcat -s SoundCanvasAudio` start line (source, client and device format, model hash prefix) |
+| On-device parity with host reference | NOT RUN | `cd android && ./gradlew :soundcanvas-audio:connectedDebugAndroidTest`; `adb logcat -s YamnetParity` shows per-fixture max difference |
+| Release-like build classifies in airplane mode, no Metro | NOT RUN | `./gradlew :app:assembleRelease`, `adb install`, airplane mode on |
+| 20x Start/Stop, 10x background/foreground, Stop while starting, revoke, Stop -> background -> foreground stays stopped, Stop -> force quit -> relaunch stays stopped | NOT RUN | Watch for stale events, two mic indicators, stuck state, post-stop haptic |
+| Route change (wired/USB/Bluetooth headset), call, another app recording | NOT RUN | Expect capture released and a "Start listening again" error; restart follows the user's choice |
+| 15 min continuous listening | NOT RUN | Crashes, memory (`adb shell dumpsys meminfo app.soundcanvas.poc`), CPU, battery temperature; stop summary in logcat |
+| Settings, Dark/Light, Reduce Motion/Off, immersive, Back, large text, TalkBack | NOT RUN | Errors must stay visible above the artwork |
+| Start -> first result, median/P95 interval over 30+ results, inference duration, dropped windows | NOT RUN | Diagnostics (first result, intervals) and the logcat stop line (median/P95/max inference, windows, dropped) |
+
+## Latency
+
+| Metric | Android device | iPhone 13 Pro Max |
+| --- | --- | --- |
+| Start to first result | _not measured_ | _not measured_ |
+| Median / P95 update interval | _not measured_ | _not measured_ |
+| Inference median / P95 | _not measured_ | _not measured_ |
+
+Expected: first result after about 1 s of audio plus model load and inference; nominal hop 487.5 ms.
+
+## Open issues
+
+- Every physical-device gate above.
+- Whether `UNPROCESSED` capture is too quiet on some devices for YAMNet (the source order can be changed in `MicrophoneCapture.kt` if device tests show it).
+- Before Android 10 the real device format is not available; diagnostics then show the AudioRecord format.
+- Android 9 and below have no "client silenced" signal: a call or another recorder may deliver silence without an error there.
+- The iOS MediaPipe pod has not been checked for telemetry (release checklist).
+- Play release gate, not REQ-009: the generated release manifest also requests `INTERNET`, `READ/WRITE_EXTERNAL_STORAGE` and `SYSTEM_ALERT_WINDOW` from Expo defaults. AUVIONA uses none of them in release; decide on `android.blockedPermissions` in `app.json` before a store build.
+- Debug builds can send MediaPipe usage statistics (see `noTelemetry/README.md`); judge network behaviour only on a release build.

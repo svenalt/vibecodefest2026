@@ -15,7 +15,7 @@ interface NativeSubscription {
   remove(): void;
 }
 
-/** The surface of the native SoundCanvasAudio module (Swift today, Kotlin later). */
+/** The surface of the native SoundCanvasAudio module (Swift on iOS, Kotlin on Android). */
 export interface SoundCanvasAudioModule {
   getPermissionStatus(): Promise<PermissionStatus>;
   requestPermission(): Promise<PermissionStatus>;
@@ -36,7 +36,7 @@ interface NativeState {
   error?: string | null;
 }
 
-/** SoundInput backed by the native module. The same class serves iOS now and Android later. */
+/** SoundInput backed by the native module. The same class serves iOS and Android. */
 export class NativeSoundInput implements SoundInput {
   readonly platform: Platform;
   private readonly native: SoundCanvasAudioModule;

@@ -1,0 +1,78 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'app.soundcanvas.audio'
+version = '0.1.0'
+
+// The pinned model and label map live once, in the app's assets/model folder.
+def yamnetClassMap = file('../../../assets/model/yamnet_class_map.csv')
+def yamnetModel = file('../../../assets/model/yamnet.tflite')
+
+android {
+  namespace 'app.soundcanvas.audio'
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+    consumerProguardFiles 'consumer-rules.pro'
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+  sourceSets {
+    // Release only: no-op stand-ins for Google's datatransport API; see src/noTelemetry/README.md.
+    release.java.srcDirs += 'src/noTelemetry/java'
+    // The on-device parity test needs the model; only the test APK gets this copy.
+    androidTest.assets.srcDirs += '../../../assets/model'
+  }
+  testOptions {
+    unitTests.all {
+      systemProperty 'soundcanvas.classMap', yamnetClassMap.absolutePath
+      systemProperty 'soundcanvas.model', yamnetModel.absolutePath
+    }
+  }
+}
+
+/** Packages the pinned yamnet_class_map.csv as an Android asset so native code can audit labels. */
+abstract class CopyYamnetClassMap extends DefaultTask {
+  @InputFile
+  @PathSensitive(PathSensitivity.NONE)
+  abstract RegularFileProperty getClassMap()
+
+  @OutputDirectory
+  abstract DirectoryProperty getOutputDir()
+
+  @TaskAction
+  void copy() {
+    def dir = new File(outputDir.get().asFile, 'soundcanvas-audio')
+    dir.mkdirs()
+    java.nio.file.Files.copy(
+      classMap.get().asFile.toPath(),
+      new File(dir, 'yamnet_class_map.csv').toPath(),
+      java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+  }
+}
+
+def copyYamnetClassMap = tasks.register('copyYamnetClassMap', CopyYamnetClassMap) {
+  classMap.set(yamnetClassMap)
+  outputDir.set(layout.buildDirectory.dir('generated/soundcanvas/assets'))
+}
+
+androidComponents {
+  onVariants(selector().all()) { variant ->
+    variant.sources.assets?.addGeneratedSourceDirectory(copyYamnetClassMap, { it.outputDir })
+  }
+}
+
+dependencies {
+  // Pinned to the iOS pod version (MediaPipeTasksAudio 1.0.0). In release builds Google's
+  // datatransport is excluded so MediaPipe's usage-stats uploader has nothing to send through
+  // (src/noTelemetry/README.md). Debug builds keep it: expo-dev-client's ML Kit ships the real
+  // library there, and two copies of the same classes must not meet in one APK.
+  debugImplementation 'com.google.mediapipe:tasks-audio:1.0.0'
+  releaseImplementation('com.google.mediapipe:tasks-audio:1.0.0') {
+    exclude group: 'com.google.android.datatransport'
+  }
+  testImplementation 'junit:junit:4.13.2'
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
+}
