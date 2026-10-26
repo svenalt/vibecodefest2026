@@ -16,9 +16,9 @@ import {
 
 import type { ThemeMode } from '../ui/theme';
 import { burstOrigin, RibbonField, SHEETS } from './ribbonField';
-import { BURST_LIFE_S, type Burst, type Motif, type VizFrame } from './vizModel';
+import { BURST_LIFE_S, LAYER_LOOK, LAYERS, type Burst, type Layer, type Tint, type VizFrame } from './vizModel';
 
-type Hue = 'aqua' | 'amber' | 'lav' | 'mint' | 'gold' | 'shine';
+type Hue = Tint;
 const HUES: readonly Hue[] = ['aqua', 'amber', 'lav', 'mint', 'gold', 'shine'];
 
 interface Look {
@@ -135,7 +135,17 @@ const GLINTS = (() => {
 })();
 
 const SPARKS_PER_BURST = 7;
-const BURST_HUE: Record<Motif, Hue> = { waves: 'lav', pulses: 'gold', particles: 'mint', forms: 'aqua', ambient: 'shine' };
+
+/** Strands woven through the warm and foreground sheets: [sheet, thread position]. */
+const STRANDS: readonly (readonly [number, number])[] = [
+  [WARM, -0.4],
+  [FRONT, 0.35],
+  [FRONT, -0.7],
+];
+/** Layers drawn as strands; each family sits on its own threads so concurrent ones stay apart. */
+const STRAND_LAYERS: readonly { layer: Layer; offset: number }[] = LAYERS.filter(
+  (l) => LAYER_LOOK[l].motif === 'waves',
+).map((layer, i) => ({ layer, offset: i === 0 ? 0 : (i % 2 ? 0.18 : -0.18) * Math.ceil(i / 2) }));
 
 /**
  * Draws the Universe V3 scene (flowing light-ribbon landscape) into one Skia picture per frame.
@@ -231,7 +241,7 @@ export class UniversePainter {
     this.canvas.drawPicture(this.backdrop);
     this.haze(f);
     for (let i = 0; i < SHEETS.length; i++) this.sheet(f, i);
-    if (f.weights.waves > 0.02) this.speechStrands(f);
+    if (f.weights.waves > 0.02) this.strands(f);
     for (const b of f.bursts) this.burst(b);
     this.glints(f);
     this.motes(f);
@@ -400,28 +410,30 @@ export class UniversePainter {
     this.stroke.setShader(null);
   }
 
-  /** Speech: lavender strands woven through the warm and foreground sheets. */
-  private speechStrands(f: VizFrame) {
-    const ww = f.weights.waves;
+  /**
+   * Voices (and the other flowing families): strands woven through the warm and foreground
+   * sheets, in the family's tint. Speech keeps its accepted lavender look on the original threads.
+   */
+  private strands(f: VizFrame) {
     const { field } = this;
-    const strands: [number, number][] = [
-      [WARM, -0.4],
-      [FRONT, 0.35],
-      [FRONT, -0.7],
-    ];
+    const energy = clamp01(f.level + 0.6 * f.accent);
     this.stroke.setShader(null);
     this.stroke.setBlendMode(this.look.blend);
-    for (const [i, s] of strands) {
-      const path = this.curve((j) => field.threadY(i, s, j));
-      const energy = clamp01(f.level + 0.6 * f.accent);
-      this.stroke.setColor(this.glowColor.lav);
-      this.stroke.setStrokeWidth((6 + 10 * energy) * this.scale);
-      this.stroke.setAlphaf(ww * (0.06 + 0.1 * energy));
-      this.canvas.drawPath(path, this.stroke);
-      this.stroke.setColor(this.lineColor.lav);
-      this.stroke.setStrokeWidth((0.8 + 0.8 * energy) * this.scale);
-      this.stroke.setAlphaf(ww * (0.45 + 0.4 * energy));
-      this.canvas.drawPath(path, this.stroke);
+    for (const { layer, offset } of STRAND_LAYERS) {
+      const ww = f.layers[layer];
+      if (ww < 0.02) continue;
+      const hue = LAYER_LOOK[layer].tint;
+      for (const [i, s] of STRANDS) {
+        const path = this.curve((j) => field.threadY(i, Math.max(-1, Math.min(1, s + offset)), j));
+        this.stroke.setColor(this.glowColor[hue]);
+        this.stroke.setStrokeWidth((6 + 10 * energy) * this.scale);
+        this.stroke.setAlphaf(ww * (0.06 + 0.1 * energy));
+        this.canvas.drawPath(path, this.stroke);
+        this.stroke.setColor(this.lineColor[hue]);
+        this.stroke.setStrokeWidth((0.8 + 0.8 * energy) * this.scale);
+        this.stroke.setAlphaf(ww * (0.45 + 0.4 * energy));
+        this.canvas.drawPath(path, this.stroke);
+      }
     }
   }
 
@@ -432,7 +444,7 @@ export class UniversePainter {
     const fade = (1 - life) ** 2;
     const s = b.strength;
     if (s * fade < 0.02) return;
-    const hue = BURST_HUE[b.motif];
+    const hue = b.tint;
     const n = field.n;
     const origin = burstOrigin(b);
     const spread = b.age * 0.32;
@@ -482,7 +494,7 @@ export class UniversePainter {
       const c = fract(b.seed * 3.17 + k * 0.382);
       const x = this.xAt(origin + (a - 0.5) * 0.22 * (0.3 + grow));
       const y = crest - zone * (0.02 + (0.08 + 0.2 * c) * grow);
-      const hue: Hue = b.motif === 'ambient' ? (k % 2 ? 'amber' : 'aqua') : k % 3 ? BURST_HUE[b.motif] : 'gold';
+      const hue: Hue = b.motif === 'ambient' ? (k % 2 ? 'amber' : 'aqua') : k % 3 ? b.tint : 'gold';
       const r = (0.8 + 1.1 * c) * this.scale;
       const alpha = s * fade * (0.6 + 0.4 * a);
       this.glowAt(x, y, r * 3.5, r * 3.5, hue, alpha * 0.6);

@@ -9,6 +9,8 @@ version = '0.1.0'
 // The pinned model and label map live once, in the app's assets/model folder.
 def yamnetClassMap = file('../../../assets/model/yamnet_class_map.csv')
 def yamnetModel = file('../../../assets/model/yamnet.tflite')
+// Shared top-K selection cases, also read by the Swift and TypeScript tests (REQ-012).
+def topkParity = file('../test-fixtures/topk-parity.txt')
 
 android {
   namespace 'app.soundcanvas.audio'
@@ -28,6 +30,7 @@ android {
     unitTests.all {
       systemProperty 'soundcanvas.classMap', yamnetClassMap.absolutePath
       systemProperty 'soundcanvas.model', yamnetModel.absolutePath
+      systemProperty 'soundcanvas.topkParity', topkParity.absolutePath
     }
   }
 }

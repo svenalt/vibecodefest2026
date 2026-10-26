@@ -1,18 +1,7 @@
+import type { VisualFamily } from './yamnet/taxonomy';
+
 /** Platforms that will host a native YAMNet adapter. Shared code never branches on this. */
 export type Platform = 'ios' | 'android';
-
-/** Categories SoundCanvas surfaces. `silence` and `unknown` are valid outputs, never forced into a sound. */
-export const SOUND_CATEGORIES = [
-  'speech',
-  'music',
-  'dog_bark',
-  'applause',
-  'rain',
-  'bell',
-] as const;
-
-export type SoundCategory = (typeof SOUND_CATEGORIES)[number];
-export type PredictionCategory = SoundCategory | 'silence' | 'unknown';
 
 /** One entry of the model's top-K output, as delivered by a native adapter. */
 export interface RawScore {
@@ -27,19 +16,31 @@ export interface RawScore {
 /** What a native adapter emits for each inference. Identical shape on iOS and Android. */
 export interface RawClassification {
   timestampMs: number;
-  /** Highest-scoring classes, best first. */
+  /** The YAMNET_TOP_K highest-scoring classes, best first (ties by lower index). */
   top: RawScore[];
   /** Number of classes in the model output (must be 521). */
   classCount: number;
 }
 
-/** Normalized, platform-independent prediction. */
+/** One validated top-K entry of an inference, with its visual family from the shared taxonomy. */
+export interface SoundCandidate {
+  /** YAMNet output index, 0..520. */
+  index: number;
+  /** Pinned raw YAMNet label at that index. */
+  rawLabel: string;
+  /** Raw model score. Not a calibrated probability. */
+  score: number;
+  family: VisualFamily;
+}
+
+/**
+ * Normalized, platform-independent result of one inference: every top-K candidate, best first
+ * (ties by lower index). Nothing is filtered or collapsed here; confidence gating, smoothing and
+ * the choice of what to show belong to the tracker.
+ */
 export interface SoundPrediction {
   timestampMs: number;
-  category: PredictionCategory;
-  /** Raw YAMNet label that produced `category` (best raw label when `unknown`). */
-  rawLabel: string;
-  score: number;
+  candidates: readonly SoundCandidate[];
   model: 'yamnet';
   platform: Platform;
 }
@@ -93,7 +94,7 @@ export type Unsubscribe = () => void;
 
 /**
  * The platform adapter contract, implemented by the iOS (Swift) and Android (Kotlin)
- * adapters through one native module. Shared UI and category logic only ever see
+ * adapters through one native module. Shared UI and recognition logic only ever see
  * this interface.
  */
 export interface SoundInput {

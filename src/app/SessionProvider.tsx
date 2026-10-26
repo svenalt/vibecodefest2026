@@ -12,12 +12,12 @@ import { AccessibilityInfo } from 'react-native';
 
 import type { SessionSnapshot, SoundSession } from '../core/soundSession';
 import type { AudioFeatures } from '../core/types';
-import { CATEGORY_DISPLAY } from '../core/yamnet/taxonomy';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import { useSoundSession } from '../hooks/useSoundSession';
 import { HAPTICS_SUPPORTED, playEventHaptic } from '../native/haptics';
 import { vizModeFor, type VizMode } from '../viz/vizModel';
 import { HapticCueGate } from './hapticCue';
+import { SoundAnnouncer } from './soundAnnouncer';
 import { usePreferences } from './PreferencesProvider';
 import { HAPTIC_ALERTS_AVAILABLE } from './release';
 
@@ -62,19 +62,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [controller, listeningOn]);
 
   // Announce confirmed sound changes to screen readers, whichever screen is showing.
-  const announced = useRef<string>('');
+  const announcer = useRef(new SoundAnnouncer()).current;
   useEffect(() => {
-    if (!listening) {
-      announced.current = '';
-      return;
-    }
-    const key = current.kind === 'event' ? current.category : current.kind;
-    if (key === announced.current) return;
-    announced.current = key;
-    if (current.kind === 'event') {
-      AccessibilityInfo.announceForAccessibility(`Sound detected: ${CATEGORY_DISPLAY[current.category]}`);
-    }
-  }, [listening, current]);
+    const text = announcer.observe(current, listening, Date.now());
+    if (text) AccessibilityInfo.announceForAccessibility(text);
+  }, [announcer, listening, current]);
 
   // Opt-in haptic cue for each new confirmed timeline event (already smoothed and cooled down).
   const hapticsAvailable = HAPTIC_ALERTS_AVAILABLE && HAPTICS_SUPPORTED;

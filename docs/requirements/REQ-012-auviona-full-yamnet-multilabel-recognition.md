@@ -106,3 +106,13 @@ Prepare a reproducible small audio test set (rights-cleared or locally generated
 **Out of scope:** CLAP/open-vocabulary audio-language models, speech transcription, identifying people, sound direction/location, automatic safety alerts, cloud analytics, website publication, App Store submission, or changing model weights. A future separate REQ can evaluate open-vocabulary models once 521-class performance is measured.
 
 **Definition of done:** Implemented on both mobile platforms, automated gates pass, evidence-based focused device QA is recorded, user-facing claims are truthful, and owner acceptance is requested for this new REQ. Until then status remains Ready for implementation.
+
+## 6. Implementation log
+
+**2026-10-26 — implemented in code, awaiting device QA and owner acceptance.** Status stays *Ready for implementation* until the definition of done is met.
+
+- Automated gates pass: typecheck; 272 TypeScript tests; `verify-model` (hashes unchanged); 41 Kotlin unit tests; the `swiftc` iOS audit check. iOS was typechecked, not built: there is no Xcode on the development Mac.
+- Host evaluation of 58 locally generated clips (40 isolated, 18 mixtures, 11 families plus quiet and noise) with the pinned model: see [docs/evaluation/req-012-host-evaluation.md](../evaluation/req-012-host-evaluation.md). It includes the confusion and failure summary and the comparison with the six-category build.
+- Not done: device QA on iOS and Android, performance and thermal comparison, VoiceOver/TalkBack checks. User-facing copy (store draft, support page, About) still describes six sounds and must be updated after device verification.
+- Notes: [docs/implementation-notes.md](../implementation-notes.md#req-012-full-yamnet-taxonomy-and-simultaneous-sounds-notes), taxonomy and thresholds in [docs/model.md](../model.md#taxonomy-req-012).
+

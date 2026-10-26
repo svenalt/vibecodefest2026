@@ -2,10 +2,11 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { SessionSnapshot } from '../core/soundSession';
+import { AlsoSounds } from './CurrentSound';
 import { Icon } from './Icon';
-import { CATEGORY_ICON } from './icons';
+import { SOUND_ICON } from './icons';
 import { MIC_ICON } from './MicStatus';
-import { immersiveCard, micState, type Presentation } from './status';
+import { immersiveCard, micState, summaryAccessibilityLabel, type Presentation } from './status';
 import { RADIUS, SPACE, TOUCH_MIN, TYPE, usePalette } from './theme';
 
 export type { Presentation } from './status';
@@ -87,10 +88,10 @@ export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationC
             style={[styles.caption, scrim]}
             accessible
             accessibilityRole="summary"
-            accessibilityLabel={`Current sound: ${card.title}. ${card.detail}.`}
+            accessibilityLabel={summaryAccessibilityLabel(card)}
           >
             <Icon
-              name={card.category ? CATEGORY_ICON[card.category] : MIC_ICON[mic.kind]}
+              name={card.icon ? SOUND_ICON[card.icon] : MIC_ICON[mic.kind]}
               color={card.tone === 'event' ? c.primary : c.onScrim}
               size={26}
               weight={2}
@@ -98,6 +99,7 @@ export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationC
             <View style={styles.captionTexts}>
               <Text style={[styles.captionTitle, { color: c.onScrim }]}>{card.title}</Text>
               <Text style={[styles.captionDetail, { color: c.scrimSubtext }]}>{card.detail}</Text>
+              <AlsoSounds also={card.also} textColor={c.onScrim} iconColor={c.onScrim} borderColor={c.scrimBorder} />
             </View>
           </View>
         )}
@@ -106,7 +108,7 @@ export function ImmersiveOverlay({ snapshot, busy, presentation, onPresentationC
           {(
             [
               { value: 'art', label: 'Pure Art', hint: 'Artwork with minimal controls' },
-              { value: 'sounds', label: 'Art + Sounds', hint: 'Shows the current sound over the artwork' },
+              { value: 'sounds', label: 'Art + Sounds', hint: 'Shows the current sounds over the artwork' },
             ] as const
           ).map((o) => {
             const selected = presentation === o.value;

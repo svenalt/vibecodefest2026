@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession } from '../app/SessionProvider';
 import { SoundCanvasView } from '../viz/SoundCanvasView';
-import { motifForCurrent } from '../viz/vizModel';
+import { sceneFor } from '../viz/vizModel';
 import { CurrentSound } from './CurrentSound';
 import { Icon } from './Icon';
 import { EnterImmersiveButton, ImmersiveOverlay, type Presentation } from './ImmersiveOverlay';
@@ -89,7 +89,7 @@ export function LiveScreen({ active, immersive, onImmersiveChange, onOpenSetting
 
       <View style={immersive ? styles.fill : { height: vizHeight }}>
         <SoundCanvasView
-          motif={motifForCurrent(current)}
+          scene={sceneFor(current)}
           mode={effectiveViz}
           rounded={!immersive}
           getFeatures={getFeatures}

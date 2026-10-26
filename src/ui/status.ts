@@ -1,8 +1,8 @@
 import type { SaveState } from '../app/preferences';
 import type { Current } from '../core/eventTracker';
 import type { SessionSnapshot } from '../core/soundSession';
-import type { PredictionCategory } from '../core/types';
-import { CATEGORY_DISPLAY } from '../core/yamnet/taxonomy';
+import { STATE_DISPLAY, type VisualFamily } from '../core/yamnet/taxonomy';
+import type { SoundIcon } from './icons';
 
 export type MicKind = 'on' | 'off' | 'starting' | 'stopping' | 'blocked' | 'error';
 
@@ -28,55 +28,87 @@ export function micState(snapshot: SessionSnapshot, busy: boolean): MicState {
 /** `event` = a real confirmed detection; `calm` = listening with nothing to report; `off` and `alert` are mic states. */
 export type SoundTone = 'event' | 'calm' | 'off' | 'alert';
 
+/** A secondary sound recognized at the same time as the primary one. */
+export interface AlsoSound {
+  label: string;
+  family: VisualFamily;
+}
+
 export interface SoundSummary {
   /** Icon to show; `null` means "use the microphone icon for this mic state". */
-  category: PredictionCategory | null;
+  icon: SoundIcon | null;
   title: string;
   detail: string;
   tone: SoundTone;
+  /** Up to two other sounds recognized at the same time; empty unless `tone` is `event`. */
+  also: readonly AlsoSound[];
 }
 
+const NONE: readonly AlsoSound[] = [];
+
 /**
- * Plain-English description of what the phone hears now. No raw labels, scores or
- * probabilistic wording: those live in Diagnostics.
+ * Plain-English description of what the phone hears now: the primary sound as the title, other
+ * concurrent sounds in `also`. No raw labels, scores or probabilistic wording: those live in
+ * Diagnostics.
  */
 export function soundSummary(mic: MicKind, current: Current, hasPrediction: boolean): SoundSummary {
   switch (mic) {
     case 'blocked':
       return {
-        category: null,
+        icon: null,
         title: 'Microphone blocked',
         detail: 'Allow microphone access in system settings to see sounds here.',
         tone: 'alert',
+        also: NONE,
       };
     case 'error':
-      return { category: null, title: 'Listening stopped', detail: 'A problem stopped the microphone.', tone: 'alert' };
+      return { icon: null, title: 'Listening stopped', detail: 'A problem stopped the microphone.', tone: 'alert', also: NONE };
     case 'starting':
-      return { category: null, title: 'Starting…', detail: 'Turning the microphone on.', tone: 'off' };
+      return { icon: null, title: 'Starting…', detail: 'Turning the microphone on.', tone: 'off', also: NONE };
     case 'stopping':
-      return { category: null, title: 'Stopping…', detail: 'Turning the microphone off.', tone: 'off' };
+      return { icon: null, title: 'Stopping…', detail: 'Turning the microphone off.', tone: 'off', also: NONE };
     case 'off':
       return {
-        category: null,
+        icon: null,
         title: 'Not listening',
         detail: 'Turn listening on in Settings to see sounds here.',
         tone: 'off',
+        also: NONE,
       };
     case 'on':
       break;
   }
   if (current.kind === 'event') {
-    return { category: current.category, title: CATEGORY_DISPLAY[current.category], detail: 'Detected just now', tone: 'event' };
+    return {
+      icon: current.primary.family,
+      title: current.primary.label,
+      detail: 'Detected just now',
+      tone: 'event',
+      also: current.secondary.map((s) => ({ label: s.label, family: s.family })),
+    };
   }
   if (current.kind === 'silence') {
-    return { category: 'silence', title: CATEGORY_DISPLAY.silence, detail: 'Very little sound right now', tone: 'calm' };
+    return { icon: 'silence', title: STATE_DISPLAY.silence, detail: 'Very little sound right now', tone: 'calm', also: NONE };
   }
   return {
-    category: 'unknown',
+    icon: 'unknown',
     title: 'Listening for sounds',
-    detail: hasPrediction ? 'Nothing recognized right now' : 'First result in about a second',
+    detail: hasPrediction ? `${STATE_DISPLAY.unknown} right now` : 'First result in about a second',
     tone: 'calm',
+    also: NONE,
   };
+}
+
+/** "Speech", "Speech and Music", "Speech, Music and Traffic". */
+export function joinLabels(labels: readonly string[]): string {
+  if (labels.length <= 1) return labels[0] ?? '';
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+}
+
+/** One sentence for screen readers with everything the tile shows. */
+export function summaryAccessibilityLabel(s: SoundSummary): string {
+  const also = s.also.length > 0 ? ` Also: ${joinLabels(s.also.map((a) => a.label))}.` : '';
+  return `Current sound: ${s.title}.${also} ${s.detail}.`;
 }
 
 /** Immersive presentations: the artwork alone, or the artwork with the live sound card. */

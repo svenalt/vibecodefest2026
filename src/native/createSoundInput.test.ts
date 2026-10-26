@@ -64,8 +64,9 @@ describe('createSoundInput on Android', () => {
 
     const snap = session.getSnapshot();
     expect(snap.capture).toMatchObject({ ...LISTENING_48K, modelClassCount: 521, error: null });
-    expect(snap.tracker.current).toMatchObject({ kind: 'event', category: 'speech' });
-    expect(snap.diagnostics.lastPrediction).toMatchObject({ platform: 'android', model: 'yamnet', rawLabel: 'Speech' });
+    expect(snap.tracker.current).toMatchObject({ kind: 'event', primary: { label: 'Speech' }, secondary: [] });
+    expect(snap.diagnostics.lastPrediction).toMatchObject({ platform: 'android', model: 'yamnet' });
+    expect(snap.diagnostics.lastPrediction?.candidates[0]?.rawLabel).toBe('Speech');
     expect(features).toEqual([0.2]);
   });
 

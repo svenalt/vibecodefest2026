@@ -2,9 +2,9 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { Current } from '../core/eventTracker';
 import { Icon } from './Icon';
-import { CATEGORY_ICON } from './icons';
+import { SOUND_ICON } from './icons';
 import { MIC_ICON } from './MicStatus';
-import { soundSummary, type MicKind } from './status';
+import { soundSummary, summaryAccessibilityLabel, type AlsoSound, type MicKind } from './status';
 import { RADIUS, SPACE, TYPE, usePalette } from './theme';
 
 interface Props {
@@ -14,13 +14,14 @@ interface Props {
 }
 
 /**
- * The "what is the phone hearing now" tile. Text and icon carry everything; colour only
+ * The "what is the phone hearing now" tile: the primary sound as the title, other sounds
+ * recognized at the same time as small labels below. Text and icon carry everything; colour only
  * reinforces it. Raw model labels and scores stay in Diagnostics.
  */
 export function CurrentSound({ mic, current, hasPrediction }: Props) {
   const c = usePalette();
   const s = soundSummary(mic, current, hasPrediction);
-  const icon = s.category ? CATEGORY_ICON[s.category] : MIC_ICON[mic];
+  const icon = s.icon ? SOUND_ICON[s.icon] : MIC_ICON[mic];
 
   const surface =
     s.tone === 'alert'
@@ -37,7 +38,7 @@ export function CurrentSound({ mic, current, hasPrediction }: Props) {
       style={[styles.tile, surface]}
       accessible
       accessibilityRole="summary"
-      accessibilityLabel={`Current sound: ${s.title}. ${s.detail}.`}
+      accessibilityLabel={summaryAccessibilityLabel(s)}
       accessibilityLiveRegion="polite"
     >
       <View style={[styles.well, { backgroundColor: s.tone === 'alert' ? 'transparent' : c.iconWell }]}>
@@ -46,7 +47,35 @@ export function CurrentSound({ mic, current, hasPrediction }: Props) {
       <View style={styles.texts}>
         <Text style={[styles.title, { color: titleColor }]}>{s.title}</Text>
         <Text style={[styles.detail, { color: detailColor }]}>{s.detail}</Text>
+        <AlsoSounds also={s.also} textColor={c.text} iconColor={c.art} borderColor={c.border} />
       </View>
+    </View>
+  );
+}
+
+/** Compact labels for the secondary sounds. Hidden from accessibility: the parent's label reads them. */
+export function AlsoSounds({
+  also,
+  textColor,
+  iconColor,
+  borderColor,
+}: {
+  also: readonly AlsoSound[];
+  textColor: string;
+  iconColor: string;
+  borderColor: string;
+}) {
+  if (also.length === 0) return null;
+  return (
+    <View style={styles.also} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {also.map((a) => (
+        <View key={`${a.family}:${a.label}`} style={[styles.pill, { borderColor }]}>
+          <Icon name={SOUND_ICON[a.family]} color={iconColor} size={16} weight={2} />
+          <Text style={[styles.pillText, { color: textColor }]} numberOfLines={1}>
+            {a.label}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -65,4 +94,16 @@ const styles = StyleSheet.create({
   texts: { flex: 1, gap: 2 },
   title: TYPE.title,
   detail: TYPE.callout,
+  also: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.xs + 2, marginTop: SPACE.xs + 2 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.xs,
+    borderWidth: 1,
+    borderRadius: RADIUS.pill,
+    paddingVertical: 3,
+    paddingHorizontal: SPACE.sm + 2,
+    maxWidth: '100%',
+  },
+  pillText: { ...TYPE.caption, flexShrink: 1 },
 });

@@ -16,15 +16,29 @@ describe.each<Platform>(['ios', 'android'])('SoundSession on %s adapter', (platf
     await session.start();
     expect(session.getSnapshot().capture.status).toBe('listening');
 
-    for (const label of ['Speech', 'Speech', 'Music', 'Music']) {
+    ['Speech', 'Speech', 'Music', 'Music'].forEach((label, i) => {
       advance(490);
-      input.emitScores(0, [[label, 0.9], ['Inside, small room', 0.3]]);
-    }
+      input.emitScores(490 * (i + 1), [[label, 0.9], ['Inside, small room', 0.3]]);
+    });
 
     const { tracker, diagnostics } = session.getSnapshot();
-    expect(tracker.current).toMatchObject({ kind: 'event', category: 'music' });
-    expect(tracker.events.map((e) => e.category)).toEqual(['music', 'speech']);
-    expect(diagnostics.lastPrediction).toMatchObject({ platform, model: 'yamnet', category: 'music' });
+    // Music now leads; speech is still held for a moment as a secondary sound.
+    expect(tracker.current).toMatchObject({ kind: 'event', primary: { label: 'Music' }, secondary: [{ label: 'Speech' }] });
+    expect(tracker.events.map((e) => e.label)).toEqual(['Music', 'Speech']);
+    expect(diagnostics.lastPrediction).toMatchObject({ platform, model: 'yamnet' });
+    expect(diagnostics.lastPrediction?.candidates[0]).toMatchObject({ rawLabel: 'Music', family: 'music' });
+  });
+
+  it('recognizes sounds beyond the original six, alongside them', async () => {
+    const { input, session } = setup(platform);
+    await session.start();
+    input.emitScores(490, [['Speech', 0.9], ['Siren', 0.8]]);
+    input.emitScores(980, [['Speech', 0.9], ['Siren', 0.8]]);
+    expect(session.getSnapshot().tracker.current).toMatchObject({
+      kind: 'event',
+      primary: { label: 'Speech', family: 'voice' },
+      secondary: [{ label: 'Siren', family: 'signals' }],
+    });
   });
 });
 
@@ -93,8 +107,8 @@ describe('SoundSession lifecycle', () => {
   it('keeps "no confident event" distinct from an error', async () => {
     const { input, session } = setup();
     await session.start();
-    input.emitScores(0, [['Siren', 0.9]]);
-    input.emitScores(0, [['Siren', 0.9]]);
+    input.emitScores(0, [['Siren', 0.2], ['Speech', 0.1]]);
+    input.emitScores(0, [['Siren', 0.2], ['Speech', 0.1]]);
     const snap = session.getSnapshot();
     expect(snap.tracker.current.kind).toBe('none');
     expect(snap.error).toBeNull();
@@ -219,7 +233,7 @@ describe('SoundSession fatal failures', () => {
     const t = setup();
     await t.session.start();
     for (let i = 0; i < 3; i++) t.input.emitScores(i * 500, [['Speech', 0.9]]);
-    expect(t.session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', category: 'speech' });
+    expect(t.session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', primary: { label: 'Speech' } });
     const features: number[] = [];
     t.session.onFeatures((f) => features.push(f.rms));
     return { ...t, features };
@@ -240,7 +254,7 @@ describe('SoundSession fatal failures', () => {
     expect(snap.capture.status).toBe('idle');
     expect(snap.error).toBe('Inference failed: interpreter error');
     expect(snap.tracker.current.kind).toBe('none');
-    expect(snap.tracker.events.map((e) => e.category)).toEqual(['speech']); // history only
+    expect(snap.tracker.events.map((e) => e.label)).toEqual(['Speech']); // history only
 
     lateResults(input);
     const after = session.getSnapshot();
@@ -296,7 +310,7 @@ describe('SoundSession fatal failures', () => {
     expect(snap.tracker.events).toHaveLength(0); // a new session starts a new list
     input.emitScores(0, [['Music', 0.9]]);
     input.emitScores(500, [['Music', 0.9]]);
-    expect(session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', category: 'music' });
+    expect(session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', primary: { label: 'Music' } });
   });
 
   it('a retry waits for the failed session to be released before opening capture', async () => {

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 import java.io.RandomAccessFile
 import java.nio.channels.FileChannel
 
@@ -75,6 +76,20 @@ class YamnetContractTest {
     val nan = all.map { if (it.index == 5) it.copy(score = Float.NaN) else it }
     for (bad in listOf(duplicate, outOfRange, nan)) {
       assertThrows(ModelContractException::class.java) { ClassificationAudit.audit(bad, labels) }
+    }
+  }
+
+  @Test
+  fun `selects the same top 10 as iOS and JS for the shared parity cases`() {
+    val cases = File(System.getProperty("soundcanvas.topkParity")!!).readLines().filter { it.isNotBlank() && !it.startsWith("#") }
+    assertEquals(5, cases.size)
+    for (line in cases) {
+      val (name, expected, scores) = line.split('|')
+      val values = scores.split(',').map { it.toFloat() }
+      // MediaPipe's own order is not guaranteed; the audit must not depend on it.
+      val all = values.mapIndexed { i, s -> ClassScore(i, labels[i], s) }.shuffled(kotlin.random.Random(name.hashCode()))
+      val top = ClassificationAudit.audit(all, labels).top
+      assertEquals(name, expected.split(',').map { it.toInt() }, top.map { it.index })
     }
   }
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { burstLift, layoutFor, RibbonField, SHEETS } from './ribbonField';
-import { BURST_LIFE_S, VizState, type Burst, type VizFrame, type VizInput } from './vizModel';
+import { BURST_LIFE_S, VizState, type Burst, type VizFrame, type VizInput, type VizScene } from './vizModel';
+
+const CALM: VizScene = { calm: 1 };
 
 const DT = 1 / 30;
 const quiet: VizInput = { rms: 0.004, peak: 0.005, bands: { low: 0.4, mid: 0.4, high: 0.2 } };
@@ -22,7 +24,7 @@ function settled(w: number, h: number, seconds = 6) {
   const state = new VizState();
   const field = new RibbonField(w, h);
   let frame!: VizFrame;
-  for (let t = 0; t < seconds; t += DT) frame = state.step(DT, quiet, 'ambient');
+  for (let t = 0; t < seconds; t += DT) frame = state.step(DT, quiet, CALM);
   field.update(frame);
   return { state, field, frame };
 }
@@ -62,7 +64,7 @@ describe('RibbonField', () => {
     let finite = true;
     for (let k = 0; k < 600; k++) {
       const input = k % 7 === 0 ? inputs[3]! : inputs[k % inputs.length]!;
-      field.update(state.step(DT, input, k % 50 < 25 ? 'forms' : 'waves'));
+      field.update(state.step(DT, input, k % 50 < 25 ? { music: 1 } : { voice: 1 }));
       for (const y of snapshot(field)) {
         finite &&= Number.isFinite(y);
         lo = Math.min(lo, y);
@@ -77,23 +79,23 @@ describe('RibbonField', () => {
   it('is almost still in a quiet room: tiny change between consecutive frames', () => {
     const { state, field } = settled(396, 389);
     const a = snapshot(field);
-    field.update(state.step(DT, quiet, 'ambient'));
+    field.update(state.step(DT, quiet, CALM));
     expect(maxDiff(a, snapshot(field))).toBeLessThan(1.5);
   });
 
   it('a quiet tap deforms the ribbons (shape, not just brightness), then releases', () => {
     const { state, field } = settled(396, 389);
     const before = snapshot(field);
-    let frame = state.step(DT, tap, 'ambient');
-    for (let k = 0; k < 6; k++) frame = state.step(DT, quiet, 'ambient');
+    let frame = state.step(DT, tap, CALM);
+    for (let k = 0; k < 6; k++) frame = state.step(DT, quiet, CALM);
     expect(frame.bursts.length).toBe(1);
     field.update(frame);
     expect(maxDiff(before, snapshot(field))).toBeGreaterThan(12);
 
-    for (let t = 0; t < BURST_LIFE_S + 1.5; t += DT) frame = state.step(DT, quiet, 'ambient');
+    for (let t = 0; t < BURST_LIFE_S + 1.5; t += DT) frame = state.step(DT, quiet, CALM);
     field.update(frame);
     const after = snapshot(field);
-    field.update(state.step(DT, quiet, 'ambient'));
+    field.update(state.step(DT, quiet, CALM));
     expect(frame.bursts.length).toBe(0);
     expect(maxDiff(after, snapshot(field))).toBeLessThan(1.5);
   });
@@ -113,7 +115,7 @@ describe('RibbonField', () => {
 });
 
 describe('burstLift', () => {
-  const burst = (age: number): Burst => ({ age, strength: 0.8, seed: 0.5, motif: 'ambient' });
+  const burst = (age: number): Burst => ({ age, strength: 0.8, seed: 0.5, motif: 'ambient', tint: 'shine' });
 
   it('rises quickly, travels outward and is gone by the end of its life', () => {
     expect(burstLift(burst(0), 0.5, 1)).toBe(0);
@@ -126,7 +128,7 @@ describe('burstLift', () => {
   it('is bounded and answers less on the back sheets', () => {
     for (let a = 0; a < BURST_LIFE_S; a += 0.05) {
       for (let u = 0; u <= 1; u += 0.05) {
-        const v = burstLift({ age: a, strength: 1, seed: 0.5, motif: 'waves' }, u, 1);
+        const v = burstLift({ age: a, strength: 1, seed: 0.5, motif: 'waves', tint: 'lav' }, u, 1);
         expect(v).toBeGreaterThanOrEqual(0);
         expect(v).toBeLessThan(0.4);
       }

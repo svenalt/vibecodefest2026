@@ -99,6 +99,7 @@ MediaPipe's built-in usage-statistics upload is disabled on Android, so a releas
 | `npm test` | Unit tests for the shared logic, bridge and visualization model |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run verify-model` | Verifies `assets/model/*` against the pinned hashes |
+| `npm run check-ios-audit` | Compiles the iOS model-output audit with `swiftc` and checks it against the shared top-K cases (no Xcode needed) |
 | `npm run gen-labels` | Regenerates `src/core/yamnet/labels.ts` from the label CSV |
 | `npm run ios` / `npm run android` | `expo run:ios` / `expo run:android` |
 

@@ -5,10 +5,11 @@ import { View, type LayoutChangeEvent } from 'react-native';
 import type { AudioFeatures } from '../core/types';
 import { usePalette } from '../ui/theme';
 import { UniversePainter } from './universePainter';
-import { VizState, type Motif, type VizMode } from './vizModel';
+import { sceneKey, VizState, type VizMode, type VizScene } from './vizModel';
 
 interface Props {
-  motif: Motif;
+  /** What the recognized sounds ask of the scene; the sound itself drives all motion. */
+  scene: VizScene;
   mode: VizMode;
   /** Rounded card corners; off when the artwork fills the screen. */
   rounded?: boolean;
@@ -23,8 +24,8 @@ const IDLE_FRAME_MS = 1000 / 15; // stopped and settled: slow breathing only, so
 
 /**
  * Decorative sound-reactive Skia scene. It is an artistic interpretation of loudness, tone
- * and broad sound class, never a map of where a sound comes from, and it carries no
- * information that the text UI does not also state.
+ * and broad sound families, never a map of where a sound comes from or how many sources there
+ * are, and it carries no information that the text UI does not also state.
  *
  * Each frame is recorded imperatively into one Skia picture, so React only swaps a single
  * prop instead of reconciling a tree of shapes.
@@ -32,25 +33,26 @@ const IDLE_FRAME_MS = 1000 / 15; // stopped and settled: slow breathing only, so
  * Fills its parent; the parent decides whether that is a card or the whole screen. The same
  * instance serves both, so entering immersive mode never starts a second scene or loop.
  */
-export function SoundCanvasView({ motif, mode, rounded = true, getFeatures, paused = false }: Props) {
+export function SoundCanvasView({ scene, mode, rounded = true, getFeatures, paused = false }: Props) {
   const c = usePalette();
   // The painter always uses the measured size, so the same scene recomposes for a card or the full screen.
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [picture, setPicture] = useState<SkPicture | null>(null);
-  const motifRef = useRef(motif);
-  motifRef.current = motif;
+  const sceneRef = useRef(scene);
+  sceneRef.current = scene;
+  const key = sceneKey(scene);
 
   const painter = useMemo(
     () => (size.width > 0 && size.height > 0 ? new UniversePainter(size.width, size.height, c.mode, c.vizBg) : null),
     [size.width, size.height, c.mode, c.vizBg],
   );
-  // One long-lived state so motif changes, pauses and theme switches cross-fade instead of restarting.
+  // One long-lived state so sound changes, pauses and theme switches cross-fade instead of restarting.
   const state = useRef(new VizState()).current;
 
-  // Reduce Motion: one fixed composition, redrawn only when the motif, size or theme changes.
+  // Reduce Motion: one fixed composition, redrawn only when the sounds, size or theme change.
   useEffect(() => {
-    if (mode === 'reduced' && painter) setPicture(painter.draw(VizState.staticFrame(motif)));
-  }, [mode, motif, painter]);
+    if (mode === 'reduced' && painter) setPicture(painter.draw(VizState.staticFrame(sceneRef.current)));
+  }, [mode, key, painter]);
 
   useEffect(() => {
     if (mode !== 'animated' || paused || !painter) return;
@@ -63,7 +65,7 @@ export function SoundCanvasView({ motif, mode, rounded = true, getFeatures, paus
       if (now - last < interval - 2) return;
       const dt = (now - last) / 1000;
       last = now;
-      const frame = state.step(dt, getFeatures(), motifRef.current);
+      const frame = state.step(dt, getFeatures(), sceneRef.current);
       const settled = !frame.listening && frame.presence < 0.02 && frame.level < 0.01 && frame.bursts.length === 0;
       interval = settled ? IDLE_FRAME_MS : FRAME_MS;
       setPicture(painter.draw(frame));

@@ -349,3 +349,37 @@ Run on the development Mac (macOS 12, Command Line Tools only, Node 24, JDK 21) 
 | iOS Swift compile | **Not possible here** (no Xcode / iOS SDK). `swiftc -typecheck` of `AudioPipeline.swift` + `WindowBuffer.swift` + `FeatureExtractor.swift` against the macOS SDK with a stub `YamnetClassifier` reports only the 13 `AVAudioSession … unavailable in macOS` errors that the unchanged file also reports, and nothing else. A real Xcode build is still required |
 | Privacy/Support URLs | `curl` over HTTPS: `/privacy` and `/support` answer `307` to the trailing-slash path, then `200 text/html` with the intended pages; canonical links match |
 | Device regression (fault injection, delayed stop, links, fresh install) | **Not run** (no device here) |
+
+# REQ-012 Full YAMNet taxonomy and simultaneous sounds notes
+
+Implemented 2026-10-26 on top of `3d42a48`. Details of the taxonomy, thresholds and evidence: [model.md](model.md#taxonomy-req-012) and [evaluation/req-012-host-evaluation.md](evaluation/req-012-host-evaluation.md). **Not accepted:** device QA has not run.
+
+## What changed
+
+- `taxonomy.ts` v2: all 521 classes, each with display name, one of 11 visual families, a subtype group, an umbrella flag and a role (509 sounds, 11 context, silence). The six-category allowlist, `SoundCategory` and `CATEGORY_DISPLAY` are gone.
+- `normalize.ts`: returns the validated top 10 as ranked candidates; adds the top-K bound, index range/duplicate and finite-score/timestamp checks.
+- `eventTracker.ts`: per-sound tracking with onset, hysteresis, hold and release; one sound per family, at most three (primary + two); per-sound cooldown; water/noise contradiction rule; thresholds by label, group, family and default. `Current` is `{ primary, secondary }`; Recent sounds entries carry label, family and raw label.
+- UI: the sound tile and the Art + Sounds card show the primary as the title and the others as small labels (`AlsoSounds`), read in one accessibility label. Pure Art is unchanged. One icon per family (four new: vehicle, home, tools, impact; the six keep theirs). `SoundAnnouncer` announces a new primary once and new secondary sounds at most every 4 s.
+- Artwork: `VizState` cross-fades one layer per family (primary 70–100 %, each secondary 15 %); motif weights are the sums of the layers. Families that share the strand motif draw on their own threads in their own tint; bursts take the primary's tint. Sound features remain the only motion source.
+- Native: iOS audits the full 521-class output (count, unique indices, finite scores) and breaks ties by lower index, like Android (`YamnetAudit.swift`). `TOP_K` is pinned in TypeScript, Kotlin and Swift. Shared parity cases: `modules/soundcanvas-audio/test-fixtures/topk-parity.txt`.
+- Nothing persisted changed (preferences hold no sound data), so no migration is needed. No new permissions, dependencies or network access. The model and label hashes are unchanged.
+
+## Verification
+
+Run on the development Mac (macOS 12, Command Line Tools only, Node 24, JDK 21) on 2026-10-26:
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm test` | PASS, 272 tests in 20 files (before: 208 in 18) |
+| `npm run verify-model` | PASS, both SHA-256 match the pins (unchanged) |
+| Kotlin `:soundcanvas-audio:testDebugUnitTest` | PASS, 41 tests (40 + shared top-K parity) |
+| `npm run check-ios-audit` (`swiftc`) | PASS: 5 parity cases, 6 contract rejections, top-K size |
+| iOS Swift typecheck | `swiftc -typecheck` of `YamnetAudit.swift`, `YamnetClassifier.swift` (against a MediaPipe API stub), `AudioPipeline.swift`, `WindowBuffer.swift`, `FeatureExtractor.swift` against the macOS SDK: only the 13 known `AVAudioSession … unavailable in macOS` errors. A real Xcode build is still required |
+| Host clip evaluation | 58 clips: 21/40 isolated and 15/18 mixtures show an expected family (six-category build: 14/40, 14/18); silence and room tone never show a sound; no regression on the original six |
+| Device QA (iOS, Android), performance, VoiceOver/TalkBack | **Not run** (no device here); checklist in the evaluation document |
+
+## Open points
+
+- User-facing copy still describes six sounds: `docs/release/app-store-metadata.md` ("recognises a small set of everyday sounds … other sounds show No confident sound") and `site/support.html`. Per REQ-012 D.5 they change only after device verification; until then they are inaccurate for a build that contains REQ-012.
+- Thresholds outside the original six rest on host evidence with synthetic sounds; tune them with real recordings during device QA (`DEFAULT_THRESHOLDS` in `eventTracker.ts`, then update the evaluation and the hit-rate floor in `clipEvaluation.test.ts`).

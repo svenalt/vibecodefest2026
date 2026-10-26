@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { currentSounds } from '../core/eventTracker';
 import type { SessionSnapshot } from '../core/soundSession';
 import { TAXONOMY_VERSION } from '../core/yamnet/taxonomy';
 import { formatScore } from './format';
@@ -35,12 +36,21 @@ export function Diagnostics({ snapshot }: { snapshot: SessionSnapshot }) {
     ['Last update interval', ms(d.lastIntervalMs)],
     ['Mean update interval', ms(d.meanIntervalMs)],
     [
-      'Last prediction',
-      last ? `${last.category} / "${last.rawLabel}" / ${last.score.toFixed(3)}` : 'n/a',
+      'Last top candidates',
+      last && last.candidates.length > 0
+        ? last.candidates
+            .slice(0, 3)
+            .map((c) => `"${c.rawLabel}" ${c.score.toFixed(3)}`)
+            .join(', ')
+        : 'n/a',
     ],
     [
-      'Current event (raw)',
-      current.kind === 'event' ? `${current.category} / "${current.rawLabel}" / ${formatScore(current.score)}` : current.kind,
+      'Current sounds (raw)',
+      current.kind === 'event'
+        ? currentSounds(current)
+            .map((s) => `${s.family} / "${s.rawLabel}" / ${formatScore(s.score)}`)
+            .join(', ')
+        : current.kind,
     ],
     ['Model / platform', last ? `${last.model} / ${last.platform}` : 'yamnet / n/a'],
     ['Taxonomy version', String(TAXONOMY_VERSION)],

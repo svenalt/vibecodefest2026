@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { TimelineEvent } from '../core/eventTracker';
-import { CATEGORY_DISPLAY } from '../core/yamnet/taxonomy';
 import { formatSessionTime } from './format';
 import { Icon } from './Icon';
-import { CATEGORY_ICON } from './icons';
+import { SOUND_ICON } from './icons';
 import { RADIUS, SPACE, TOUCH_MIN, TYPE, usePalette } from './theme';
 
 /** How many recent sounds Live shows before "Show all". */
@@ -50,12 +49,12 @@ export function Timeline({ events }: { events: readonly TimelineEvent[] }) {
               key={e.id}
               style={[styles.row, i > 0 && { borderTopColor: c.border, borderTopWidth: StyleSheet.hairlineWidth }]}
               accessible
-              accessibilityLabel={`${CATEGORY_DISPLAY[e.category]} at ${formatSessionTime(e.timestampMs)} into the session`}
+              accessibilityLabel={`${e.label} at ${formatSessionTime(e.timestampMs)} into the session`}
             >
               <View style={[styles.well, { backgroundColor: c.iconWell }]}>
-                <Icon name={CATEGORY_ICON[e.category]} color={c.art} size={20} />
+                <Icon name={SOUND_ICON[e.family]} color={c.art} size={20} />
               </View>
-              <Text style={[styles.rowLabel, { color: c.text }]}>{CATEGORY_DISPLAY[e.category]}</Text>
+              <Text style={[styles.rowLabel, { color: c.text }]}>{e.label}</Text>
               <Text style={[styles.rowMeta, { color: c.subtext }]}>{formatSessionTime(e.timestampMs)}</Text>
             </View>
           ))}

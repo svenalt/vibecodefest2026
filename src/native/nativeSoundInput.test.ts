@@ -48,7 +48,7 @@ describe('NativeSoundInput', () => {
     fire('onState', { status: 'listening', hardwareSampleRate: 44100, hardwareChannelCount: 2 });
     fire('onClassification', fakeClassification(0, [['Music', 0.9]]));
     fire('onClassification', fakeClassification(490, [['Music', 0.9]]));
-    expect(session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', category: 'music' });
+    expect(session.getSnapshot().tracker.current).toMatchObject({ kind: 'event', primary: { label: 'Music' } });
     expect(session.getSnapshot().diagnostics.lastPrediction?.platform).toBe('ios');
   });
 

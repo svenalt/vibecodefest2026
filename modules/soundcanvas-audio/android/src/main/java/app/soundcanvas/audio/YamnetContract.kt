@@ -7,6 +7,7 @@ object Yamnet {
   const val HOP_SAMPLES = 7_800
   const val FEATURE_WINDOW_SAMPLES = 800
   const val NUM_CLASSES = 521
+  /** Classes sent to JS per inference; pinned with ios/YamnetAudit.swift and src/core/yamnet/constants.ts. */
   const val TOP_K = 10
 
   const val MODEL_SHA256 = "4d8b4a53282dc83ef04e3e7dbc4fbc98082e34e44ed798e16c3a0cdd4c584faf"

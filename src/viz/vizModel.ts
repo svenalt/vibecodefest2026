@@ -1,7 +1,11 @@
-import type { Current } from '../core/eventTracker';
-import type { AudioFeatures, SoundCategory } from '../core/types';
+import { currentSounds, type Current } from '../core/eventTracker';
+import type { AudioFeatures } from '../core/types';
+import { VISUAL_FAMILIES, type VisualFamily } from '../core/yamnet/taxonomy';
 
 export type Motif = 'waves' | 'pulses' | 'particles' | 'forms' | 'ambient';
+
+/** Accent colours the painter knows, per theme. */
+export type Tint = 'aqua' | 'amber' | 'lav' | 'mint' | 'gold' | 'shine';
 
 /** Animated, or one still frame. There is no "off": the artwork is always shown. */
 export type VizMode = 'animated' | 'reduced';
@@ -12,18 +16,76 @@ export function vizModeFor(deviceReducesMotion: boolean): VizMode {
 }
 export const MOTIFS: readonly Motif[] = ['waves', 'pulses', 'particles', 'forms', 'ambient'];
 
-const MOTIF_FOR_CATEGORY: Record<SoundCategory, Motif> = {
-  speech: 'waves',
-  applause: 'pulses',
-  bell: 'pulses',
-  dog_bark: 'pulses',
-  rain: 'particles',
-  music: 'forms',
+/** A visual layer: one per sound family, plus `calm` for quiet, unknown and not listening. */
+export type Layer = VisualFamily | 'calm';
+export const LAYERS: readonly Layer[] = [...VISUAL_FAMILIES, 'calm'];
+
+/**
+ * Broad family -> one of the existing motifs plus an accent tint. The original six sounds keep
+ * their accepted look: speech = lavender waves, applause/bark/bell = gold pulses, rain = mint
+ * particles, music = aqua forms. Recognition only colours the scene; motion comes from the sound.
+ */
+export const LAYER_LOOK: Record<Layer, { motif: Motif; tint: Tint }> = {
+  voice: { motif: 'waves', tint: 'lav' },
+  people: { motif: 'pulses', tint: 'gold' },
+  music: { motif: 'forms', tint: 'aqua' },
+  animals: { motif: 'pulses', tint: 'gold' },
+  nature: { motif: 'particles', tint: 'mint' },
+  vehicles: { motif: 'waves', tint: 'amber' },
+  household: { motif: 'pulses', tint: 'aqua' },
+  machines: { motif: 'waves', tint: 'mint' },
+  signals: { motif: 'pulses', tint: 'gold' },
+  impacts: { motif: 'pulses', tint: 'amber' },
+  other: { motif: 'ambient', tint: 'shine' },
+  calm: { motif: 'ambient', tint: 'shine' },
 };
 
-/** Broad sound class -> visual motif. Unknown and quiet fall back to calm ambient motion. */
-export function motifForCurrent(current: Current): Motif {
-  return current.kind === 'event' ? MOTIF_FOR_CATEGORY[current.category] : 'ambient';
+/** Target cross-fade weight per layer (missing = 0); the weights sum to 1. */
+export type VizScene = Readonly<Partial<Record<Layer, number>>>;
+
+/** Share of the scene each secondary sound takes; the primary keeps the rest (at least 70%). */
+export const SECONDARY_SHARE = 0.15;
+
+/**
+ * The look the artwork moves toward: the primary sound leads and each secondary sound adds a
+ * fixed, restrained share. Quiet, unknown and stopped all give the calm scene.
+ */
+export function sceneFor(current: Current): VizScene {
+  const sounds = currentSounds(current);
+  if (sounds.length === 0) return { calm: 1 };
+  const scene: Partial<Record<Layer, number>> = {};
+  sounds.forEach((s, i) => {
+    const share = i === 0 ? 1 - SECONDARY_SHARE * (sounds.length - 1) : SECONDARY_SHARE;
+    scene[s.family] = (scene[s.family] ?? 0) + share;
+  });
+  return scene;
+}
+
+/** A stable string for a scene, for effect dependencies. */
+export function sceneKey(scene: VizScene): string {
+  return LAYERS.filter((l) => (scene[l] ?? 0) > 0)
+    .map((l) => `${l}:${scene[l]!.toFixed(3)}`)
+    .join(',');
+}
+
+/** The layer with the largest share (ties: earlier in LAYERS). */
+export function leadLayer(scene: VizScene): Layer {
+  let lead: Layer = 'calm';
+  let best = -1;
+  for (const l of LAYERS) {
+    const w = scene[l] ?? 0;
+    if (w > best) {
+      lead = l;
+      best = w;
+    }
+  }
+  return lead;
+}
+
+function motifWeights(layers: Readonly<Record<Layer, number>>): Record<Motif, number> {
+  const weights: Record<Motif, number> = { waves: 0, pulses: 0, particles: 0, forms: 0, ambient: 0 };
+  for (const l of LAYERS) weights[LAYER_LOOK[l].motif] += layers[l];
+  return weights;
 }
 
 /** Compresses raw RMS (typically 0.001-0.3) into a 0..1 visual intensity. */
@@ -40,8 +102,9 @@ export interface Burst {
   strength: number;
   /** Stable 0..1 value so each burst varies its placement and shape without flicker. */
   seed: number;
-  /** Motif that was showing when the sound arrived; the burst keeps that look while it fades. */
+  /** Look of the leading layer when the sound arrived; the burst keeps it while it fades. */
   motif: Motif;
+  tint: Tint;
 }
 
 export interface VizFrame {
@@ -51,8 +114,10 @@ export interface VizFrame {
   accent: number;
   /** Band energy: tone balance scaled by `level`, so all bands are ~0 in silence or steady noise. */
   bands: { low: number; mid: number; high: number };
-  /** Cross-fade weight per motif; sums to 1. */
+  /** Cross-fade weight per motif (the sum of its layers); sums to 1. */
   weights: Record<Motif, number>;
+  /** Cross-fade weight per layer; sums to 1. */
+  layers: Record<Layer, number>;
   /** Seconds of animation clock. Only for gentle breathing, never a substitute for sound. */
   time: number;
   /** Drift phase that advances slowly at rest and faster with foreground sound. */
@@ -127,7 +192,10 @@ export class VizState {
   private level = 0;
   private accent = 0;
   private tone = { low: 0, mid: 0, high: 0 };
-  private weights: Record<Motif, number> = { waves: 0, pulses: 0, particles: 0, forms: 0, ambient: 1 };
+  private layers: Record<Layer, number> = Object.fromEntries(LAYERS.map((l) => [l, l === 'calm' ? 1 : 0])) as Record<
+    Layer,
+    number
+  >;
   private time = 0;
   private flow = 0;
   private rmsBaseline = new AmbientBaseline();
@@ -139,7 +207,7 @@ export class VizState {
   private listening = false;
   private presence = 0;
 
-  step(dtSeconds: number, features: VizInput | null, motif: Motif): VizFrame {
+  step(dtSeconds: number, features: VizInput | null, scene: VizScene): VizFrame {
     const dt = Math.min(Math.max(dtSeconds, 0), 0.1);
     this.time += dt;
     this.listening = features !== null;
@@ -159,7 +227,7 @@ export class VizState {
     const rate = targetLevel > this.level ? ATTACK_PER_SECOND : RELEASE_PER_SECOND;
     this.level += (targetLevel - this.level) * (1 - Math.exp(-rate * dt));
 
-    this.stepOnsets(dt, drive, motif);
+    this.stepOnsets(dt, drive, LAYER_LOOK[leadLayer(scene)]);
 
     const targetTone = features?.bands ?? { low: 0, mid: 0, high: 0 };
     const k = 1 - Math.exp(-6 * dt);
@@ -171,14 +239,15 @@ export class VizState {
 
     this.flow += dt * (FLOW_REST_PER_SECOND + FLOW_SOUND_PER_SECOND * Math.max(this.level, this.accent * 0.6));
 
+    // Every layer eases toward its share at the same rate, so blends stay predictable and sum to 1.
     const blend = 1 - Math.exp(-BLEND_PER_SECOND * dt);
-    for (const m of MOTIFS) {
-      this.weights[m] += ((m === motif ? 1 : 0) - this.weights[m]) * blend;
+    for (const l of LAYERS) {
+      this.layers[l] += ((scene[l] ?? 0) - this.layers[l]) * blend;
     }
     return this.frame();
   }
 
-  private stepOnsets(dt: number, drive: number, motif: Motif): void {
+  private stepOnsets(dt: number, drive: number, look: { motif: Motif; tint: Tint }): void {
     this.sinceBurst += dt;
     for (const b of this.bursts) b.age += dt;
     this.bursts = this.bursts.filter((b) => b.age < BURST_LIFE_S);
@@ -191,7 +260,7 @@ export class VizState {
     const strength = Math.min(1, 0.25 + rise * 0.9 + drive * 0.25);
     this.sinceBurst = 0;
     this.accent = Math.max(this.accent, strength);
-    this.bursts.push({ age: 0, strength, seed: this.nextSeed(), motif });
+    this.bursts.push({ age: 0, strength, seed: this.nextSeed(), motif: look.motif, tint: look.tint });
     if (this.bursts.length > MAX_BURSTS) this.bursts.shift();
   }
 
@@ -209,7 +278,8 @@ export class VizState {
         mid: this.tone.mid * this.level,
         high: this.tone.high * this.level,
       },
-      weights: { ...this.weights },
+      weights: motifWeights(this.layers),
+      layers: { ...this.layers },
       time: this.time,
       flow: this.flow,
       bursts: this.bursts.map((b) => ({ ...b })),
@@ -218,15 +288,15 @@ export class VizState {
     };
   }
 
-  /** A fixed composition for Reduce Motion: the current motif, gentle intensity, no clock, no bursts. */
-  static staticFrame(motif: Motif): VizFrame {
-    const weights = { waves: 0, pulses: 0, particles: 0, forms: 0, ambient: 0 } as Record<Motif, number>;
-    weights[motif] = 1;
+  /** A fixed composition for Reduce Motion: the current scene, gentle intensity, no clock, no bursts. */
+  static staticFrame(scene: VizScene): VizFrame {
+    const layers = Object.fromEntries(LAYERS.map((l) => [l, scene[l] ?? 0])) as Record<Layer, number>;
     return {
       level: 0.35,
       accent: 0,
       bands: { low: 0.14, mid: 0.14, high: 0.07 },
-      weights,
+      weights: motifWeights(layers),
+      layers,
       time: 0,
       flow: 0,
       bursts: [],

@@ -32,7 +32,6 @@ final class AudioPipeline {
     let features: ([String: Any?]) -> Void
   }
 
-  private static let topK = 10
   private static let featureWindowSamples = 800
 
   private let sinks: Sinks
@@ -217,7 +216,7 @@ final class AudioPipeline {
       }
       guard self.isCurrent(tapEpoch), let classifier = self.classifier else { return }
       do {
-        let output = try classifier.classify(window: ready, topK: AudioPipeline.topK)
+        let output = try classifier.classify(window: ready, topK: YamnetContract.topK)
         guard self.isCurrent(tapEpoch) else { return }
         self.sinks.classification([
           "timestampMs": timestampMs,

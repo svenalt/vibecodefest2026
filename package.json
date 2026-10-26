@@ -27,7 +27,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "verify-model": "node scripts/verify-model.mjs",
-    "gen-labels": "node scripts/gen-labels.mjs"
+    "gen-labels": "node scripts/gen-labels.mjs",
+    "check-ios-audit": "swiftc modules/soundcanvas-audio/ios/YamnetAudit.swift modules/soundcanvas-audio/ios-tests/main.swift -o \"${TMPDIR:-/tmp}/yamnet-audit-check\" && \"${TMPDIR:-/tmp}/yamnet-audit-check\" modules/soundcanvas-audio/test-fixtures/topk-parity.txt"
   },
   "private": true
 }

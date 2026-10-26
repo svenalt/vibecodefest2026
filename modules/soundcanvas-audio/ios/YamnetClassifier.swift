@@ -1,16 +1,10 @@
 import Foundation
 import MediaPipeTasksAudio
 
-struct ClassScore {
-  let index: Int
-  let label: String
-  let score: Float
-}
-
 struct ClassificationOutput {
-  /// Number of classes the model returned for this window (YAMNet: 521).
+  /// Number of classes the model returned for this window (always 521 once audited).
   let classCount: Int
-  /// Highest-scoring classes, best first.
+  /// Highest-scoring classes, best first; ties keep the lower index first.
   let top: [ClassScore]
 }
 
@@ -58,10 +52,10 @@ final class YamnetClassifier {
       throw YamnetError.emptyResult
     }
 
-    let top = categories
-      .sorted { $0.score > $1.score }
-      .prefix(topK)
-      .map { ClassScore(index: $0.index, label: $0.categoryName ?? $0.displayName ?? "", score: $0.score) }
-    return ClassificationOutput(classCount: categories.count, top: Array(top))
+    let all = categories.map {
+      ClassScore(index: $0.index, label: $0.categoryName ?? $0.displayName ?? "", score: $0.score)
+    }
+    let top = try ClassificationAudit.audit(all, topK: topK)
+    return ClassificationOutput(classCount: all.count, top: top)
   }
 }

@@ -1,7 +1,7 @@
-import type { Platform, RawClassification, SoundPrediction } from './types';
-import { YAMNET_NUM_CLASSES } from './yamnet/constants';
+import type { Platform, RawClassification, SoundCandidate, SoundPrediction } from './types';
+import { YAMNET_NUM_CLASSES, YAMNET_TOP_K } from './yamnet/constants';
 import { YAMNET_LABELS } from './yamnet/labels';
-import { categoryForIndex } from './yamnet/taxonomy';
+import { TAXONOMY } from './yamnet/taxonomy';
 
 /** Thrown when a native adapter's model output does not match the pinned YAMNet contract. */
 export class ModelContractError extends Error {
@@ -12,49 +12,44 @@ export class ModelContractError extends Error {
 }
 
 /**
- * Turns a native top-K result into one normalized prediction, using the single shared
- * taxonomy. The best-scoring surfaced class wins; if none of the top-K is surfaced the
- * prediction is `unknown`. Raw scores are passed through untouched (not probabilities).
+ * Validates a native top-K result against the pinned contract and turns it into the ranked
+ * candidate list, using the single shared taxonomy. Every one of the 521 classes can be a
+ * candidate; nothing is filtered or merged here. Raw scores pass through untouched (they are not
+ * probabilities). Any violation throws, because results that break the contract cannot be trusted.
  */
 export function normalizeClassification(
   raw: RawClassification,
   platform: Platform,
+  topK: number = YAMNET_TOP_K,
 ): SoundPrediction {
   if (raw.classCount !== YAMNET_NUM_CLASSES) {
-    throw new ModelContractError(
-      `Model reported ${raw.classCount} classes, expected ${YAMNET_NUM_CLASSES}`,
-    );
+    throw new ModelContractError(`Model reported ${raw.classCount} classes, expected ${YAMNET_NUM_CLASSES}`);
   }
-  const top = [...raw.top].sort((a, b) => b.score - a.score);
-  for (const entry of top) {
-    if (YAMNET_LABELS[entry.index] !== entry.label) {
+  if (!Number.isFinite(raw.timestampMs)) {
+    throw new ModelContractError(`Classification has an invalid timestamp: ${raw.timestampMs}`);
+  }
+  if (raw.top.length > topK) {
+    throw new ModelContractError(`Adapter sent ${raw.top.length} classes, expected at most the top ${topK}`);
+  }
+
+  const seen = new Set<number>();
+  const candidates: SoundCandidate[] = raw.top.map((entry) => {
+    const { index, label, score } = entry;
+    if (!Number.isInteger(index) || index < 0 || index >= YAMNET_NUM_CLASSES || seen.has(index)) {
+      throw new ModelContractError(`Model reported class index ${index} out of range or twice`);
+    }
+    seen.add(index);
+    if (YAMNET_LABELS[index] !== label) {
       throw new ModelContractError(
-        `Class order mismatch at index ${entry.index}: runtime "${entry.label}" vs pinned "${YAMNET_LABELS[entry.index]}"`,
+        `Class order mismatch at index ${index}: runtime "${label}" vs pinned "${YAMNET_LABELS[index]}"`,
       );
     }
-  }
-
-  for (const entry of top) {
-    const category = categoryForIndex(entry.index);
-    if (category !== undefined) {
-      return {
-        timestampMs: raw.timestampMs,
-        category,
-        rawLabel: entry.label,
-        score: entry.score,
-        model: 'yamnet',
-        platform,
-      };
+    if (!Number.isFinite(score)) {
+      throw new ModelContractError(`Model reported a non-finite score for "${label}"`);
     }
-  }
+    return { index, rawLabel: label, score, family: TAXONOMY[index]!.family };
+  });
+  candidates.sort((a, b) => b.score - a.score || a.index - b.index);
 
-  const best = top[0];
-  return {
-    timestampMs: raw.timestampMs,
-    category: 'unknown',
-    rawLabel: best?.label ?? '',
-    score: best?.score ?? 0,
-    model: 'yamnet',
-    platform,
-  };
+  return { timestampMs: raw.timestampMs, candidates, model: 'yamnet', platform };
 }
