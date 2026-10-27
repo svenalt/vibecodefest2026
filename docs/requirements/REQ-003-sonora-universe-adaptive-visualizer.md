@@ -1,9 +1,8 @@
 # REQ-003 — SONORA Universe adaptive sound visualizer (2-hour prototype scope)
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** P0 — signature demo experience  
-**Recommended Claude Code:** Sonnet 5.5, **Medium** effort (High only for a concrete difficult renderer/native issue)  
 **Timebox:** **50 minutes of implementation**, excluding iPhone-build troubleshooting  
 **Target:** One shared Skia/React Native visualizer for iOS and Android; iPhone demo first  
 **Depends on:** REQ-001 feature/event contract and optional REQ-002 theme colors

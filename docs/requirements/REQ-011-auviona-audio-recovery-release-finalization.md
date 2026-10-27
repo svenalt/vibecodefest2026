@@ -1,22 +1,21 @@
 # REQ-011 — AUVIONA: audio recovery, reliable Stop persistence and final release configuration
 
-**Status:** Ready for implementation
+**Status:** Implemented and covered by automated tests; device regression pending, not yet accepted
 **Date:** 2026-10-25
 **Priority:** P0 before public release
 **Difficulty:** Medium–high (7/10): native failure handling and asynchronous lifecycle ordering
-**Recommended Claude Code:** Opus 5.5, High effort for the lifecycle/native fixes; Sonnet 5.5, Medium effort for identifiers, links and documentation (existing project model preferences).
-**Depends on:** REQ-008/009/010, accepted by Sven after physical-device testing.
+**Depends on:** REQ-008/009/010, accepted by the owner after physical-device testing.
 **Baseline:** main `ed7b4c472e9795bc64228f03af5c7a0a7a04026b`; re-inspect current main before editing.
 
 ## 1. Owner decisions and scope
 
-Sven confirmed on 2026-10-25: “Ich habe alles auf den Geräten getestet” and requested acceptance of the completed work. REQ-001 through REQ-010 are accepted for their delivered product/device scope, including changes superseded by later requirements. Do not repeat broad acceptance or ask for that confirmation again. See ../release/device-acceptance-2026-10-25.md.
+The owner confirmed on 2026-10-25 that all delivered functionality was tested on devices. REQ-001 through REQ-010 are accepted for their delivered product/device scope, including changes superseded by later requirements.
 
 This new requirement is not implemented or accepted yet. It closes three review findings and completes release configuration. Preserve the accepted REQ-010 UI: only Listening, Appearance and About in public Settings; device-driven Reduce Motion; persistent current sound/status in immersive Art + Sounds; no Current sound button.
 
 The user authorizes replacing `app.soundcanvas.poc`. Use **`ch.auviona.app`** for both `expo.ios.bundleIdentifier` and `expo.android.package`. Keep internal module names and Kotlin namespace `app.soundcanvas.audio` unless the build actually requires a change.
 
-Privacy and Support pages already exist on **https://auviona.swarmz.cloud/**, as confirmed by Sven. Reuse those pages; do not create duplicate pages or invent contact details. Exact canonical page URLs must be read from the website footer/routes. The review environment could not retrieve the website (403); no guessed `/privacy` or `/support` paths have been verified.
+Privacy and Support pages already exist on **https://auviona.swarmz.cloud/**, as confirmed by the owner. Reuse those pages; do not create duplicate pages or invent contact details. Exact canonical page URLs must be read from the website footer/routes. The review environment could not retrieve the website (403); no guessed `/privacy` or `/support` paths have been verified.
 
 ## 2. P0-A — Fatal audio errors must stop capture and invalidate the current detection
 
@@ -62,7 +61,7 @@ Acceptance: failed and hung writes; failure followed by successful retry and res
 - Preserve the EAS project association, version 1.0.0 and remote increment strategy. Regenerate native projects as appropriate; verify resolved native identifiers and signing configuration. Record a concrete portal/signing conflict if one exists; do not infer availability or ownership from the string alone.
 - A new identifier installs as a different app: old preferences/permissions do not automatically migrate. Document this and verify fresh-install behavior. Do not promise continuity across package identities.
 - Resolve the existing Privacy/Support canonical URLs from the website. Confirm each opens directly over HTTPS without authentication and shows the intended content. Set both constants in src/app/release.ts and matching URL fields in docs/release/app-store-metadata.md. If retrieval is unavailable, report the exact unresolved URL rather than guessing or treating a null link as complete.
-- Sven has accepted the current device behavior: set PRE_RELEASE=false and retain genuine limitations. Keep validated optional haptics available. Do not remove safety/accuracy limitations or assert a completed binary privacy audit merely because device UX passed.
+- The owner has accepted the current device behavior: set PRE_RELEASE=false and retain genuine limitations. Keep validated optional haptics available. Do not remove safety/accuracy limitations or assert a completed binary privacy audit merely because device UX passed.
 - Update stale “not tested on device”/“pages not published” statements in current-facing documentation. Preserve historical implementation records as dated evidence.
 
 ## 6. Acceptance and verification

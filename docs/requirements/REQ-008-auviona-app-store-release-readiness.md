@@ -1,10 +1,9 @@
 # REQ-008 — AUVIONA V1.0: release identity, privacy, session preferences and App Store readiness
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-25
 **Priority:** P0 release blockers + P1 product polish
 **Difficulty:** Medium–High (7/10); straightforward shared-UI changes, but native build/signing and App Store compliance require real-device evidence
-**Recommended Claude Code:** **Sonnet 5.5, High effort** for implementation and test coverage; use **Opus 5.5, High** only if native/SDK/manifest or lifecycle races prove complex.
 **Target:** iOS V1.0 first (physical iPhone 13 Pro Max + TestFlight); maintain shared React Native behavior and Android-ready configuration, **do not claim Android release support** without its native YAMNet adapter and device validation.
 **Depends on:** REQ-001 through REQ-007 and the current Live-only/Settings/immersive architecture.
 **Product decision:** The final user-facing name is **AUVIONA** (replaces both SONORA and SoundCanvas). Keep the established visual direction and sound-art experience. The website slogan remains **“Making sound accessible to all.”** Do not revert to SONORA.
@@ -30,7 +29,7 @@ Observed on `main` while preparing this REQ:
 3. **Make a permanent bundle/package ID decision before the first production upload.** Candidate: `ch.auviona.app`, subject to owner/brand/domain ownership, Apple App Store Connect availability and signing-team verification. Record the **confirmed** identifier and decision in `docs/release/auviona-release-checklist.md`; set `ios.bundleIdentifier` and the Android package consistently once confirmed. **Do not silently finalize the candidate if it cannot be verified.** Changing a published bundle/package ID is not an ordinary rename.
 4. Target marketing version `1.0.0` in Expo config. Document `CFBundleShortVersionString` versus build number and `versionName` versus `versionCode`; retain EAS remote build-version management and automatic increments. Verify the resolved native build values in the signed artifact. Do not assume `package.json` version and Expo version are identical.
 5. Existing **internal** identifiers, package/module paths, Swift pod names and import names (e.g. `soundcanvas-audio`) may remain if renaming would risk the native pipeline. A textual project-wide blind replace is forbidden. Update active README/setup/release documentation while preserving historical REQ filenames and audit notes as history.
-6. **Brand/legal release gate:** AUVIONA is Sven's decided product name, but CH/EU/US collision, domain and relevant store-listing checks are not final legal clearance. Record verification/approval as a **separate release gate**; do not claim trademark ownership or buy domains as part of this REQ.
+6. **Brand/legal release gate:** AUVIONA is the owner's decided product name, but CH/EU/US collision, domain and relevant store-listing checks are not final legal clearance. Record verification/approval as a **separate release gate**; do not claim trademark ownership or buy domains as part of this REQ.
 
 ## 3. P0-B — Public privacy and support pages, linked from Settings
 
@@ -63,7 +62,7 @@ Preserve the existing design: capture is **foreground-only**. A background or in
 1. Run dependency and toolchain audit for the installed Expo SDK, React Native, Skia, custom Swift/MediaPipe native module and linked third-party SDKs. Check Expo doctor/compatible versions and pin any needed fixes. As of this REQ (2026-10-25), **Apple requires Xcode 26+ with iOS 26 SDK+ for new App Store Connect uploads**; verify again at build/submission time.
 2. Inspect the **generated native app** and final archive/IPA, including `Info.plist`, microphone text, display name, bundle ID, build/version numbers, entitlements, architectures, deployment target, asset inclusion, signing identity and privacy manifests. Assess app and SDK `PrivacyInfo.xcprivacy`, covered required-reason APIs, third-party manifest/signature requirements, and App Store Connect privacy answers. Add only correct declarations supported by an actual audit; never invent API reasons.
 3. Produce a **signed iOS release/production build** with a valid Apple Developer team and distribution credentials. Validate archive/upload with Apple's tools/App Store Connect; record exact build ID, build environment, tool/SDK versions, validation warnings and their resolutions.
-4. With Sven's credentials/authorization, upload to **TestFlight** and test the distributed build, not just an Expo dev client. **Do not publish or submit for public App Review automatically.** If credentials/team/identifier or legal/privacy contact information are missing, record a blocked release gate and ask the owner—do not mark it as passed.
+4. With the owner's credentials/authorization, upload to **TestFlight** and test the distributed build, not just an Expo dev client. **Do not publish or submit for public App Review automatically.** If credentials/team/identifier or legal/privacy contact information are missing, record a blocked release gate and ask the owner—do not mark it as passed.
 5. Minimum physical-device QA matrix (iPhone 13 Pro Max, plus at least one additional supported iPhone/iOS version when available):
    - first install, permission granted/denied/revoked, relaunch;
    - fresh foreground start, deliberate Stop -> background -> foreground -> **stays stopped**, force quit -> relaunch -> **stays stopped**, explicit Start -> background -> foreground -> resumes only if enabled;
@@ -97,7 +96,7 @@ Preserve the existing design: capture is **foreground-only**. A background or in
 - [ ] The release app is complete within its narrow Live-only scope; safe, truthful About, no “experimental prototype” claim presented as a finished build, no missing promised features or broken links.
 - [ ] `npm run typecheck`, `npm test` and `npm run verify-model` pass. Add focused regression tests for session intent, storage, hydration, app state races, themes, privacy/support navigation, and haptic cooldown if shipped.
 - [ ] A signed production iOS build is validated against then-current SDK and privacy-manifest rules; errors/warnings are resolved and **real TestFlight device testing passes** with evidence.
-- [ ] AUVIONA trademark/domain/store collision risk has documented owner/legal review; Apple developer account and metadata ready; **Sven explicitly authorizes** actual public submission.
+- [ ] AUVIONA trademark/domain/store collision risk has documented owner/legal review; Apple developer account and metadata ready; **the owner explicitly authorizes** actual public submission.
 
 ### P1 (may follow initial TestFlight, but implement/test before claiming the feature)
 

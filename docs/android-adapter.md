@@ -1,8 +1,6 @@
 # Android YAMNet adapter (REQ-009)
 
-> **Current acceptance (2026-10-25):** Sven has tested and accepted the delivered functionality on devices, including REQ-010. See [owner acceptance](release/device-acceptance-2026-10-25.md). Earlier “not run” statements below are historical coding-session evidence, not the current device-acceptance status. New fixes/configuration are tracked in REQ-011; binary audits and store operations remain separate.
-
-Status: **implemented, native debug build passes, NOT validated on any Android device.** Android audio classification must not be described as working, and Android must not be called "supported", until the physical-device gates below pass. Google Play release readiness is a separate gate and is not granted here.
+Status: implemented and tested on devices together with the shared UI (REQ-001–010 acceptance, 2026-10-25). Google Play release readiness is a separate gate and has not been granted.
 
 Android is a second platform adapter, not a different architecture. It reuses the model, label map, taxonomy, tracker, session, listening-intent controller, UI and visualization unchanged. The only Android-specific TypeScript is one branch in `src/native/createSoundInput.ts`.
 
@@ -78,16 +76,10 @@ For the offline gate use a release-like build (`./gradlew :app:assembleRelease`,
 
 Expo's generated project minifies release builds with R8. MediaPipe ships no keep rules, so `consumer-rules.pro` keeps `com.google.mediapipe.**` and protobuf-lite messages (JNI and reflection) and silences exactly the five classes R8 reported missing (AutoValue annotations, two graph-profiling/template protos the classifier never uses). `assembleRelease` passes with them; whether the minified classifier runs is part of the device gates.
 
-## Verification status (2026-10-25, macOS 12.7 x86_64, no device)
+## Open issues
 
-| Gate | Status | Evidence |
-| --- | --- | --- |
-| Expo autolinking finds the Kotlin module | **PASS** | `npx expo-modules-autolinking resolve --platform android` lists `soundcanvas-audio` with classifier `app.soundcanvas.audio.SoundCanvasAudioModule` |
-| `expo prebuild --platform android` | **PASS** | |
-| Kotlin unit tests | **PASS** | 39 tests in 7 classes (`:soundcanvas-audio:testDebugUnitTest`) |
-| Full native Gradle debug build | **PASS** | `:app:assembleDebug` (arm64-v8a), 115 MB APK with `libmediapipe_tasks_jni.so` and the class map asset |
-| Release build (R8) | **PASS** | `:app:assembleRelease` (arm64-v8a), 54 MB; embedded model SHA-256 equals the pin; no datatransport artifact on the release classpath and no datatransport components in the release manifest |
-| Instrumented parity test compiles | **PASS** | `:soundcanvas-audio:assembleDebugAndroidTest`; host reference from TensorFlow 2.16.2, fixture inputs byte-identical between JVM and Python |
-| On-device parity, every physical-device gate | **NOT RUN** | No Android device was connected (`adb devices` empty). See `implementation-notes.md` |
-
-Not verified at all: that MediaPipe loads the memory-mapped model on a device, the 521-class count and label names at runtime, any `AudioRecord` behaviour, lifecycle and interruption handling, performance. Treat every one of them as unproven until the device gates pass.
+- Whether `UNPROCESSED` capture is too quiet for YAMNet on some devices (the source order in `MicrophoneCapture.kt` can be changed if device tests show it).
+- Before Android 10 the real device format is not available; diagnostics then show the AudioRecord format.
+- Android 9 and below have no "client silenced" signal: a call or another recorder may deliver silence there without an error.
+- The generated release manifest also requests `INTERNET`, `READ/WRITE_EXTERNAL_STORAGE` and `SYSTEM_ALERT_WINDOW` from Expo defaults. AUVIONA uses none of them in release; decide on `android.blockedPermissions` in `app.json` before a Play Store build.
+- The on-device parity test (`./gradlew :soundcanvas-audio:connectedDebugAndroidTest`, `adb logcat -s YamnetParity`) and the REQ-011/REQ-012 device regressions have no recorded results yet.

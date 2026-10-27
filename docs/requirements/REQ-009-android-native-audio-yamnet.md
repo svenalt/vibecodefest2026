@@ -1,10 +1,9 @@
 # REQ-009 — AUVIONA Android: native microphone, YAMNet and device parity
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-25  
 **Priority:** P0 for functional Android support; Google Play release is a separate gate  
 **Difficulty:** High (8/10) — Kotlin/MediaPipe integration, real-time audio, lifecycle and device debugging  
-**Recommended Claude Code:** **Opus 5.5, High effort** for the native Kotlin/MediaPipe adapter and concurrency; **Sonnet 5.5, High effort** for TypeScript tests, documentation and routine integration fixes. For a tight Pro quota, use Opus for the native slice, then Sonnet.  
 **Target:** The same **AUVIONA** Live/Universe V3/Settings experience on Android, using the existing fully offline YAMNet model.  
 **Depends on:** REQ-001 architecture, REQ-007 Live-only experience and REQ-008 AUVIONA release identity, persisted listening intent and preferences.  
 **Product decision:** The public name is **AUVIONA** and the slogan is **“Making sound accessible to all.”** Do not reintroduce SONORA or SoundCanvas in customer-facing UI. Existing internal identifiers such as `SoundCanvasAudio` may remain.
@@ -21,7 +20,7 @@ Checked against the GitHub default branch while drafting:
 - `app.json` already contains `android.permission.RECORD_AUDIO` and Android icons, but Expo/JS buildability does not establish working recognition.
 - The pinned model and label CSV are in `assets/model/`; shared event mapping, smoothing, cooldown, UI and fake-adapter tests exist.
 - The iOS reference pipeline expects 16 kHz mono float32, **15,600 samples per inference**, **7,800-sample hop**, **800-sample/50 ms acoustic features**, 521 output classes and the ten highest-scoring predictions.
-- Sven reports **REQ-008 completed**; however, the default-branch Expo configuration may still contain pre-REQ-008 naming at implementation start. Inspect the current HEAD and any REQ-008 branch/commit before changing files. Do not overwrite newer AUVIONA work or reimplement REQ-008 silently; record unresolved prerequisite discrepancies.
+- The owner reports **REQ-008 completed**; however, the default-branch Expo configuration may still contain pre-REQ-008 naming at implementation start. Inspect the current HEAD and any REQ-008 branch/commit before changing files. Do not overwrite newer AUVIONA work or reimplement REQ-008 silently; record unresolved prerequisite discrepancies.
 
 **Out of scope:** New model, cloud inference, audio uploads/recording, background capture, Sound Walk/Gallery, new categories, major UI redesign, model training, Google Play publication or claims of safety-critical reliability.
 
@@ -84,7 +83,7 @@ Checked against the GitHub default branch while drafting:
 
 ### Physical-device hard gates
 
-Use **at least one real Android device**, not only an emulator. Sven's **Samsung Galaxy Tab A11** is a possible first test target; record its observed Android version and hardware. Prefer a second Android phone for broader coverage, but **do not claim phone validation if only a tablet was tested**.
+Use **at least one real Android device**, not only an emulator. An available Android tablet is a possible first test target; record its observed Android version and hardware. Prefer a second Android phone for broader coverage, but **do not claim phone validation if only a tablet was tested**.
 
 - [ ] Clean install, microphone granted/denied/permanently denied/revoked; Settings recovery works and UI reflects reality.
 - [ ] Recognize **at least three different real sound categories** from the existing taxonomy (for example speech, music, bell, bark, rain, applause). Validate actual labels/scores/timeline/visual response, not injected mock events.
@@ -99,7 +98,7 @@ Use **at least one real Android device**, not only an emulator. Sven's **Samsung
 
 ### Reporting
 
-Update `docs/android-adapter.md` and `docs/implementation-notes.md` with tested commit, Android device/OS, model SHA, pinned dependency and build tool versions, exact commands, physical-device observations, permissions/lifecycle matrix, actual categories, offline test, first-result/update timings and open issues. Mark every gate **PASS / FAIL / BLOCKED / NOT RUN**. A simulated adapter, emulator-only run or `expo export --platform android` does **not** close the physical-device gate.
+Update `docs/android-adapter.md` with tested commit, Android device/OS, model SHA, pinned dependency and build tool versions, exact commands, physical-device observations, permissions/lifecycle matrix, actual categories, offline test, first-result/update timings and open issues. Mark every gate **PASS / FAIL / BLOCKED / NOT RUN**. A simulated adapter, emulator-only run or `expo export --platform android` does **not** close the physical-device gate.
 
 ## 7. Suggested implementation sequence
 

@@ -6,7 +6,7 @@ export type ThemeMode = 'dark' | 'light';
 
 export interface Palette {
   mode: ThemeMode;
-  /** Artistic lavender accent (REQ-002 token). */
+  /** Artistic lavender accent. */
   art: string;
   /** Background gradient of the artwork container. */
   vizBg: [string, string];
@@ -94,7 +94,7 @@ interface ThemeValue {
 
 const ThemeContext = createContext<ThemeValue>({ palette: dark, setMode: () => {} });
 
-/** App-wide Light/Dark. Defaults to Dark; the choice is stored on the device (REQ-008 P1-A). */
+/** App-wide Light/Dark. Defaults to Dark; the choice is stored on the device. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { prefs, update } = usePreferences();
   const mode = prefs.theme;

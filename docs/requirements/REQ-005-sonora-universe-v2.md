@@ -1,9 +1,8 @@
 # REQ-005 — SONORA Universe V2: richer, truly sound-driven artwork
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24
 **Priority:** P0 — signature artwork quality
-**Recommended Claude Code:** Sonnet 5.5, **High** effort for the renderer (Medium for follow-up visual tuning)
 **Timebox:** 50–65 minutes, excluding physical iPhone build
 **Target:** One shared performant Skia scene for iOS and Android; iPhone demo first
 **Depends on:** REQ-003 adaptive relative-loudness logic and REQ-004 Live layout

@@ -1,6 +1,6 @@
 # REQ-001 — SoundCanvas: cross-platform Expo architecture and live sound-awareness proof of concept
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** High  
 **Target repository:** svenalt/vibecodefest2026  
@@ -152,7 +152,6 @@ Use follow-up REQs for future functionality and for Android YAMNet implementatio
 
 ## 8. Reference documentation
 
-- Expo + Claude Code: https://docs.expo.dev/agents/claude/
 - Expo custom native modules: https://docs.expo.dev/workflow/customizing/
 - Expo Audio: https://docs.expo.dev/versions/latest/sdk/audio/
 - YAMNet model, labels, preprocessing: https://github.com/tensorflow/models/tree/master/research/audioset/yamnet

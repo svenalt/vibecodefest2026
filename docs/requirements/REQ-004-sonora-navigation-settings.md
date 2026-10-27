@@ -1,9 +1,8 @@
 # REQ-004 — SONORA four-tab navigation and Settings
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24
 **Priority:** P0 — iPhone usability follow-up
-**Recommended Claude Code:** Sonnet 5.5, **Medium** effort
 **Timebox:** 35–45 minutes (excluding dev-build installation)
 **Target:** Shared React Native/TypeScript for iOS and Android, validate on iPhone 13 Pro Max
 **Depends on:** REQ-001–003 on `main`

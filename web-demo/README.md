@@ -12,6 +12,6 @@ Then open http://localhost:8000. A local HTTP server is required because the scr
 
 - Three soundscapes and their labels are **illustrative examples**, not microphone detections.
 - With permission, the browser microphone drives loudness/tone visualization **locally**; it never runs YAMNet sound classification.
-- The native iOS implementation lives in the repository's `src/` and `modules/` folders. Android's native adapter is still planned.
+- The native iOS and Android app lives in the repository's `src/` and `modules/` folders.
 
 The website is hosted separately; this is a versioned source snapshot, not an automatic deployment pipeline. Keep this folder in sync when making future website changes. The original website code is released under the repository's [MIT license](../LICENSE).

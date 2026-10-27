@@ -8,7 +8,7 @@ import { createSoundInput } from '../native/createSoundInput';
 
 /**
  * Owns the single SoundSession for the app and ties capture to the foreground. Listening
- * resumes on launch or return only while the user's persisted intent is on (REQ-008 P0-C).
+ * resumes on launch or return only while the user's persisted intent is on.
  */
 export function useSoundSession(initialListening: boolean, persistListening: (on: boolean) => void) {
   const sessionRef = useRef<SoundSession | null>(null);

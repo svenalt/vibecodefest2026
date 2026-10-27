@@ -10,7 +10,7 @@ export type Tint = 'aqua' | 'amber' | 'lav' | 'mint' | 'gold' | 'shine';
 /** Animated, or one still frame. There is no "off": the artwork is always shown. */
 export type VizMode = 'animated' | 'reduced';
 
-/** Motion follows the device alone: Reduce Motion gives the still artwork (REQ-010). */
+/** Motion follows the device alone: Reduce Motion gives the still artwork. */
 export function vizModeFor(deviceReducesMotion: boolean): VizMode {
   return deviceReducesMotion ? 'reduced' : 'animated';
 }

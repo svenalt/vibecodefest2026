@@ -1,16 +1,15 @@
 # REQ-006 — SONORA Focused Live UI & Immersive Fullscreen
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** P0 — streamlined live experience and premium UI  
-**Recommended Claude Code:** **Sonnet 5.5, High effort** (Medium for cosmetic follow-ups)  
 **Timebox:** 45–60 minutes for P0, excluding physical iPhone build and visual tuning  
 **Target:** Shared React Native/TypeScript UI for iOS and Android; iPhone 13 Pro Max first  
 **Depends on:** REQ-004 app-level single SoundSession and REQ-005 Universe V2 on main (`f10336f`)  
 
 ## Product decision — focus SONORA on Live
 
-**This decision supersedes the four-tab navigation in REQ-004 for the present prototype.** Sven has accepted REQ-005 on iPhone. The immediate product now consists of only:
+**This decision supersedes the four-tab navigation in REQ-004 for the present prototype.** The owner has accepted REQ-005 on iPhone. The immediate product now consists of only:
 
 1. **Live** — genuine environment-sound recognition + the Universe artwork; it is the root screen.
 2. **Settings** — a secondary screen reached from a polished, clearly recognizable settings button in the Live header.

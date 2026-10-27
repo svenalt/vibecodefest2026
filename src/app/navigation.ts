@@ -20,7 +20,7 @@ export function navReducer(state: NavState, action: NavAction): NavState {
     case 'openSettings':
       return { screen: 'settings', immersive: false };
     case 'enterImmersive':
-      // Immersion is a presentation of Live; the artwork is always shown (REQ-010).
+      // Immersion is a presentation of Live; the artwork is always shown.
       return state.screen === 'live' ? { ...state, immersive: true } : state;
     case 'exitImmersive':
       return state.immersive ? { ...state, immersive: false } : state;

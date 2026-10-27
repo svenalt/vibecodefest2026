@@ -99,7 +99,7 @@ final class AudioPipeline {
   private func startLocked(modelPath: String) throws {
     let session = AVAudioSession.sharedInstance()
     try session.setCategory(.record, mode: .measurement, options: [])
-    // iOS mutes haptics while recording unless allowed; the opt-in event cue needs it (REQ-008 P1-B).
+    // iOS mutes haptics while recording unless allowed; the opt-in event cue needs it.
     try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
     try session.setPreferredSampleRate(YamnetClassifier.sampleRate)
     try session.setActive(true, options: [])

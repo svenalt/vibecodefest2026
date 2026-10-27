@@ -1,9 +1,8 @@
 # REQ-002 — SONORA UI and Light/Dark (2-hour prototype scope)
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24  
 **Priority:** P0 after REQ-001 baseline  
-**Recommended Claude Code:** Sonnet 5.5, **Medium** effort  
 **Timebox:** **30 minutes of implementation**, excluding device-build troubleshooting  
 **Target:** Shared React Native / Expo TypeScript UI for iOS and Android; iPhone demonstration first  
 **Depends on:** REQ-001 commit `7d9c1c0`; REQ-001 native iPhone execution is still unverified

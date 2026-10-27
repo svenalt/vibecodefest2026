@@ -1,10 +1,9 @@
 # REQ-010 — AUVIONA: Simplify Settings and show current sound in Immersive Mode
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-25  
 **Priority:** P1 — focused UI polish  
 **Difficulty:** Low (3/10)  
-**Recommended Claude Code:** Sonnet 5.5, Medium effort  
 **Target:** Shared iOS/Android React Native UI  
 **Depends on:** REQ-007 (Live-only UI), REQ-008 (persisted preferences); compatible with REQ-009 (Android).  
 **Product decision:** Public app name **AUVIONA**. Remove both sections from customer-facing Settings while keeping Universe V3 and internal diagnostics functional. In Immersive Mode, **Art + Sounds** immediately and continuously shows the current sound without requiring a button press.

@@ -9,6 +9,6 @@ Thanks for helping make sound more accessible. This project is early-stage, so p
 
 Good first areas: accessibility and reduced-motion checks, iOS device verification, documentation, and Android device validation of the [Kotlin adapter](docs/android-adapter.md).
 
-Please do not post raw microphone recordings, private data, credentials or identifiable user information in issues or pull requests.
+Please do not post raw microphone recordings, private data, credentials or identifiable user information in issues or pull requests. Report security or privacy problems privately to auviona.app@gmail.com instead of opening a public issue.
 
 By contributing, you agree that your contribution may be distributed under the project's MIT license. Third-party files must retain their upstream notices. Project maintainers may decline changes outside the current scope.

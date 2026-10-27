@@ -48,7 +48,7 @@ export interface TrackerConfig {
  * 0.33, 0.41, 0.50, 0.59, 0.67, 0.74, 0.80 and 0.85.
  *
  * - default 0.5: the model's own decision point (logit 0), the lowest level where it leans "present".
- * - The original six keep the values accepted on devices in REQ-001-010 (0.35-0.5).
+ * - The original six keep the values accepted in device testing (0.35-0.5).
  * - Bells and signals 0.41: the accepted bell level; no signal class reached it twice on any
  *   clip without a signal. Alarm and siren stay at 0.5 because they make stronger claims.
  * - Bangs and pops 0.85: synthetic rain and applause reach 0.80 for "Explosion" and "Fireworks".

@@ -1,4 +1,4 @@
-// Checks ios/YamnetAudit.swift without Xcode or MediaPipe (REQ-012):
+// Checks ios/YamnetAudit.swift without Xcode or MediaPipe:
 //   npm run check-ios-audit
 // Uses the shared top-K parity cases that the Kotlin and TypeScript tests also read.
 import Foundation

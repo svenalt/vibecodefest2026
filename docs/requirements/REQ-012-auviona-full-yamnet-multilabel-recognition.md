@@ -1,15 +1,14 @@
 # REQ-012 — AUVIONA: full YAMNet sound taxonomy and simultaneous sound recognition
 
-**Status:** Ready for implementation — not yet implemented or accepted  
+**Status:** Implemented and covered by automated tests and host evaluation; device QA pending, not yet accepted  
 **Date:** 2026-10-26  
 **Priority:** P1 — capability expansion; do not implicitly make this a new App Store release gate  
 **Difficulty:** High (8/10) — multi-label temporal logic, taxonomy design and device validation  
-**Recommended Claude Code:** Opus 5.5, High effort  
 **Depends on:** Accepted REQ-001–010 baseline and the current 521-class on-device YAMNet pipeline; preserve the REQ-011 recovery and release-configuration fixes. Re-inspect current main before implementation.
 
 ## 1. Goal and interpretation
 
-Sven wants AUVIONA to recognise as many everyday sounds as possible, instead of exposing only six categories. The bundled YAMNet model already produces **521 independent class scores**, but the current application deliberately maps only 15 YAMNet labels to speech, music, dog bark, applause, rain and bell; all other classes become unknown.
+The owner wants AUVIONA to recognise as many everyday sounds as possible, instead of exposing only six categories. The bundled YAMNet model already produces **521 independent class scores**, but the current application deliberately maps only 15 YAMNet labels to speech, music, dog bark, applause, rain and bell; all other classes become unknown.
 
 Expose the **full existing 521-class YAMNet vocabulary** for classification and human-readable presentation, and recognise **more than one credible sound in the same scene** (e.g. speech + music + traffic) without cluttering the artwork. Retain the promise of local, offline processing. This does **not** mean that literally every possible sound can be identified, that all 521 classes are equally accurate, or that model scores are calibrated probabilities.
 
@@ -93,7 +92,7 @@ Prepare a reproducible small audio test set (rights-cleared or locally generated
 - [ ] Listening responsiveness, sustained CPU/thermal/battery behavior and rendering smoothness are compared with the existing six-category build on physical devices; regressions are measured, not concealed.
 - [ ] Visuals remain calm/legible in Light/Dark and both immersive modes; accessibility tested on each platform where available.
 
-**Acceptance rule:** "Supports the full 521-class taxonomy" means every pinned output is technically reachable and confidence-gated, **not** guaranteed accuracy for every class. Record a confusion/failure summary and any poorly performing families. Sven's device acceptance of earlier REQs does not constitute acceptance of this new functionality.
+**Acceptance rule:** "Supports the full 521-class taxonomy" means every pinned output is technically reachable and confidence-gated, **not** guaranteed accuracy for every class. Record a confusion/failure summary and any poorly performing families. The owner's device acceptance of earlier REQs does not constitute acceptance of this new functionality.
 
 ## 5. Implementation sequence / handoff
 
@@ -109,10 +108,10 @@ Prepare a reproducible small audio test set (rights-cleared or locally generated
 
 ## 6. Implementation log
 
-**2026-10-26 — implemented in code, awaiting device QA and owner acceptance.** Status stays *Ready for implementation* until the definition of done is met.
+**2026-10-26 — implemented in code, awaiting device QA and owner acceptance.** It is not accepted until the definition of done is met.
 
 - Automated gates pass: typecheck; 272 TypeScript tests; `verify-model` (hashes unchanged); 41 Kotlin unit tests; the `swiftc` iOS audit check. iOS was typechecked, not built: there is no Xcode on the development Mac.
 - Host evaluation of 58 locally generated clips (40 isolated, 18 mixtures, 11 families plus quiet and noise) with the pinned model: see [docs/evaluation/req-012-host-evaluation.md](../evaluation/req-012-host-evaluation.md). It includes the confusion and failure summary and the comparison with the six-category build.
 - Not done: device QA on iOS and Android, performance and thermal comparison, VoiceOver/TalkBack checks. User-facing copy (store draft, support page, About) still describes six sounds and must be updated after device verification.
-- Notes: [docs/implementation-notes.md](../implementation-notes.md#req-012-full-yamnet-taxonomy-and-simultaneous-sounds-notes), taxonomy and thresholds in [docs/model.md](../model.md#taxonomy-req-012).
+- Taxonomy and thresholds: [docs/model.md](../model.md#taxonomy-req-012).
 

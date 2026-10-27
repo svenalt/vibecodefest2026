@@ -1,6 +1,6 @@
 import type { VisualFamily } from './yamnet/taxonomy';
 
-/** Platforms that will host a native YAMNet adapter. Shared code never branches on this. */
+/** Platforms with a native YAMNet adapter. Shared code never branches on this. */
 export type Platform = 'ios' | 'android';
 
 /** One entry of the model's top-K output, as delivered by a native adapter. */

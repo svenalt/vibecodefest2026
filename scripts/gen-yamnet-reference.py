@@ -7,7 +7,7 @@ the app never runs it. Usage:
 
     python3 scripts/gen-yamnet-reference.py
 
-The fixture formulas must stay identical to YamnetFixtures.kt.
+The fixture formulas must stay identical to `YamnetFixtures` in YamnetParityTest.kt.
 """
 
 import hashlib

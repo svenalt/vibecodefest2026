@@ -99,7 +99,7 @@ Shown = sounds on screen per window (out of 9; the first window can never show a
 
 ## Device QA still to do (iOS and Android)
 
-Not run in this session: no device was available. Play the clips (`python3 scripts/eval-yamnet-clips.py --wav DIR`) and real recordings through a speaker, at about 1 m, and record the results here:
+Not run yet. Play the clips (`python3 scripts/eval-yamnet-clips.py --wav DIR`) and real recordings through a speaker, at about 1 m, and record the results here:
 
 - [ ] Original six against the accepted baseline: speech, music, dog bark, applause, rain, bell (real recordings).
 - [ ] New classes with real recordings across at least eight families: e.g. laughter, birdsong, cat, car or traffic, vacuum or fan, door knock, glass clink, doorbell, phone ringtone, water tap, thunder.

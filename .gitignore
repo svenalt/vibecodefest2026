@@ -16,7 +16,10 @@ expo-env.d.ts
 *.p8
 *.p12
 *.key
+*.keystore
 *.mobileprovision
+# EAS local credentials
+credentials.json
 
 # Metro
 .metro-health-check*
@@ -25,16 +28,22 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
 # macOS
 .DS_Store
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
+
+# python (scripts/)
+__pycache__/
+*.pyc
 
 # generated native folders
 /ios

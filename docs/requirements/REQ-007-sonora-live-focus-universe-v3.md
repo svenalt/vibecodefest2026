@@ -1,17 +1,16 @@
 # REQ-007 — SONORA Live Focus & Universe V3: flowing light-ribbon soundscape
 
-**Status:** Accepted by Sven on 2026-10-25 — delivered product/device scope; see [acceptance record](../release/device-acceptance-2026-10-25.md). Remaining release work and new review findings: REQ-011.
+**Status:** Accepted by the owner on 2026-10-25 after device testing (delivered product/device scope). Remaining release work and new review findings: REQ-011.
 **Date:** 2026-10-24
 **Priority:** P0 — signature artwork quality
 **Difficulty:** High (9/10), app navigation/state integration + procedural Skia visual tuning
-**Recommended Claude Code:** **Opus 5.5, High effort** for V3 composition/renderer; **Sonnet 5.5, Medium** for small follow-up tuning. If Opus quota/time is tight, Sonnet 5.5 High is a reasonable alternative.
 **Timebox:** ~75–95 minutes (15–25 minutes navigation, 55–70 minutes artwork), plus physical-device review
 **Target:** iPhone 13 Pro Max portrait first; shared React Native/Skia implementation for iOS and Android
 **Depends on:** REQ-005 Universe V2 (`src/viz/universePainter.ts`, `vizModel.ts`) and the existing REQ-006 immersive UI
 
 ## Product decision and current-code finding
 
-Sven's current prototype decision is **one Live screen, a discreet Settings access, and immersive fullscreen**. **No bottom navigation, no visible Sound Walk or Gallery**; those concepts are deferred, not “Coming soon” destinations.
+The owner's current prototype decision is **one Live screen, a discreet Settings access, and immersive fullscreen**. **No bottom navigation, no visible Sound Walk or Gallery**; those concepts are deferred, not “Coming soon” destinations.
 
 REQ-006's revised *document* already requested this, but **the new implementation commit `aa5e6a8` still renders `TabBar` and the `walk`/`gallery` `ComingSoonScreen` branches in `App.tsx`** (verified when drafting REQ-007). That commit did add the immersive artwork, honest sound tile, icons and polish. **REQ-007 must close this implementation gap while preserving the good REQ-006 work**, then deliver the Universe V3 artwork.
 
@@ -29,7 +28,7 @@ REQ-006's revised *document* already requested this, but **the new implementatio
 
 ![SONORA Universe V3 concept](../design/sonora-universe-v3-concept.png)
 
-**Source of inspiration:** Sven's supplied image: elegant orange/amber and aqua/teal translucent light waves against almost-black space. The linked V3 concept artwork is a polished composition reference generated from that visual direction. It establishes **shape, depth, color balance and atmosphere**, **not** a PNG to use as a fake animated or static canvas background.
+**Source of inspiration:** An image supplied by the owner: elegant orange/amber and aqua/teal translucent light waves against almost-black space. The linked V3 concept artwork is a polished composition reference generated from that visual direction. It establishes **shape, depth, color balance and atmosphere**, **not** a PNG to use as a fake animated or static canvas background.
 
 ### Desired visual identity
 
@@ -75,7 +74,7 @@ Use the **existing** `VizState` and its ambient-adapted feature stream. The imag
 - [ ] `npm run typecheck` and `npm test` pass; extend pure visualization-model tests for silence, onset, sustained noise, band changes and finite/bounded geometry as appropriate.
 - [ ] Provide **actual screenshots** (not only the generated reference): Dark Live, Light Live, Dark Immersive, plus a short description/video of motion during real sound. Explicitly mark anything not tested on device.
 
-## Handoff to Claude Code
+## Implementation handoff
 
 1. Read REQ-005, the updated REQ-006 and current `App.tsx`; verify the actual current branch. First surgically remove leftover four-tab navigation while preserving REQ-006's implemented immersive UI.
 2. Use `docs/design/sonora-universe-v3-concept.png` as the visual north star. **Recreate its aesthetic in real-time Skia** with genuine sound-driven movement, not by painting the PNG behind a few particles.

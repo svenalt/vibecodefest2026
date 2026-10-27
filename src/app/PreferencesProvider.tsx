@@ -17,7 +17,7 @@ import { PreferencesStore, type Preferences, type SaveState } from './preference
 interface PreferencesValue {
   prefs: Preferences;
   update: (patch: Partial<Preferences>) => void;
-  /** Whether `prefs` are stored for the next launch (REQ-011 P1-C). */
+  /** Whether `prefs` are stored for the next launch. */
   save: SaveState;
   /** The listening intent the next launch would read from storage. */
   launchListening: boolean;

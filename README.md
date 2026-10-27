@@ -2,27 +2,27 @@
 
 **Making sound accessible to all.**
 
-AUVIONA explores how everyday sounds can become accessible visual cues and living generative art. The iOS app listens through the microphone while it is open and listening is on, and shows what it hears as readable text, an icon, a short session history and live generative artwork. Everything runs on the device with Google's YAMNet model. No audio is recorded, stored or uploaded, and there are no accounts, analytics or cloud services. The interactive web demo lets anyone explore its visual language.
+AUVIONA explores how everyday sounds can become accessible visual cues and living generative art. The iOS and Android app listens through the microphone while it is open and listening is on, and shows what it hears as readable text, an icon, a short session history and live generative artwork. Everything runs on the device with Google's YAMNet model. No audio is recorded, stored or uploaded, and there are no accounts, analytics or cloud services. The interactive web demo lets anyone explore its visual language.
 
 **[Try the interactive web demo](https://sonora-vibecodefest-2026.swiftmule128.chatgpt.site)** · [Contribute](CONTRIBUTING.md) · [Open an issue](https://github.com/svenalt/vibecodefest2026/issues) · [Web demo source](web-demo/)
 
-Originally created for **Vibe Code Fest Basel 2026**. Earlier working names were SoundCanvas and SONORA. They survive only in internal identifiers (the `soundcanvas-audio` native module, the `SoundCanvasAudio` pod, the npm package name) and in historical requirement documents.
+Originally created for **Vibe Code Fest Basel 2026**. Earlier working names were SoundCanvas and SONORA. They survive only in internal identifiers (the `soundcanvas-audio` native module, the `SoundCanvasAudio` pod, the npm package name) and in the historical requirement documents in `docs/requirements/`.
 
 ## What it does
 
 - Turns recognized sounds into readable labels, icons and a sound-reactive **Universe** artwork.
 - Uses adaptive animation, light/dark appearance, and a distraction-free immersive mode.
-- Runs audio recognition on-device in the **iOS app**; no accounts, analytics, audio recordings or audio uploads.
+- Runs audio recognition on-device in the **iOS and Android app**; no accounts, analytics, audio recordings or audio uploads.
 - Provides a **web demo** with illustrative City, Nature and Music soundscapes and optional microphone-reactive visualization. The browser demo **does not classify sounds**.
 
 ## Project status
 
-AUVIONA 1.0 has been tested on devices and accepted by Sven on 2026-10-25 (REQ-001–010). Final fixes and configuration are tracked in REQ-011. It is not yet an App Store release, and it is not a safety tool.
+AUVIONA 1.0 (REQ-001–010) was tested on iOS and Android devices and accepted by the maintainer on 2026-10-25. Later work (REQ-011 audio recovery, REQ-012 full YAMNet taxonomy) is covered by automated tests and still awaits device verification. AUVIONA is not yet available in the App Store or Google Play, and it is not a safety tool.
 
 | Platform | Status |
 | --- | --- |
-| iOS | Native pipeline and UI accepted by Sven after device testing. See [acceptance record](docs/release/device-acceptance-2026-10-25.md); final release work is tracked in REQ-011. |
-| Android | Native Kotlin/YAMNet adapter and shared UI accepted by Sven after device testing. Earlier build evidence is in [Android notes](docs/android-adapter.md). |
+| iOS | Native Swift pipeline and shared UI, tested on devices. Release steps: [release checklist](docs/release/auviona-release-checklist.md). |
+| Android | Native Kotlin/YAMNet adapter and shared UI, tested on devices. Design and build notes: [Android adapter](docs/android-adapter.md). |
 | Web | Public interactive visualization demo; its example labels are illustrative, not live detections. |
 
 **Not a safety system.** It is for art and general sound awareness. Do **not** rely on AUVIONA for emergencies, alarms, safety-critical decisions, navigation, or medical decisions.
@@ -43,8 +43,9 @@ Android: mic -> AudioRecord   -> 16 kHz mono -> YAMNet (MediaPipe, Kotlin) +-> s
 - `modules/soundcanvas-audio/ios/` and `android/`: the Swift and Kotlin halves of one Expo module (capture, resampling, windowing, features, YAMNet).
 - `assets/model/`: the pinned model and label map. See [docs/model.md](docs/model.md) for origin, checksums and licensing.
 - `web-demo/`: the browser visualization demo (no sound classification).
-- `site/`: the REQ-008 drafts of the Privacy Policy and Support pages (historical). The published pages are https://auviona.swarmz.cloud/privacy and https://auviona.swarmz.cloud/support, linked from Settings > About.
-- `docs/release/`: release checklist and App Store metadata draft.
+- `docs/`: model provenance (`model.md`), Android adapter design, host evaluation, release checklist and App Store metadata draft, and the requirement documents (`requirements/`) that describe how the app evolved.
+
+The Privacy Policy and Support pages are published at https://auviona.swarmz.cloud/privacy and https://auviona.swarmz.cloud/support and are linked from Settings > About. Support email: auviona.app@gmail.com.
 
 ## Prerequisites
 
@@ -67,9 +68,9 @@ npm test
 npx expo run:ios --device
 ```
 
-This generates the gitignored `ios/` project (`expo prebuild`), installs pods including `MediaPipeTasksAudio` 1.0.0, builds a development build and installs it on the connected iPhone. The first build needs you to choose a signing team in Xcode (open `ios/AUVIONA.xcworkspace` once). The bundle identifier and Android package are `ch.auviona.app` (REQ-011). A build with this ID installs as a new app next to any older `app.soundcanvas.poc` development build: it does not inherit that build's preferences or microphone permission. See `docs/release/auviona-release-checklist.md`.
+This generates the gitignored `ios/` project (`expo prebuild`), installs pods including `MediaPipeTasksAudio` 1.0.0, builds a development build and installs it on the connected iPhone. The first build needs you to choose a signing team in Xcode (open `ios/AUVIONA.xcworkspace` once). The bundle identifier and Android package are `ch.auviona.app`.
 
-On the phone: allow the microphone when the app asks on first launch (listening starts by itself), then play speech, music, applause, a barking dog, rain or a bell. In a development build (`__DEV__`), Settings > Developer displays the microphone format, the model class count and the measured latency; release builds do not show it. Record those numbers in `docs/implementation-notes.md`.
+On the phone: allow the microphone when the app asks on first launch (listening starts by itself), then play speech, music, applause, a barking dog, rain or a bell. In a development build (`__DEV__`), Settings > Developer displays the microphone format, the model class count and the measured latency; release builds do not show it.
 
 If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install first; the Swift module cannot build without it.
 
@@ -79,7 +80,7 @@ If `npx expo run:ios` stops with CocoaPods errors, fix the CocoaPods install fir
 npx expo run:android --device
 ```
 
-This generates the gitignored `android/` project, builds a development build with the Kotlin module and MediaPipe Tasks Audio 1.0.0, and installs it. Android asks for the microphone like iOS; if it is refused, the app explains why and links to the app's system settings. The development-build diagnostics show the device and analysis format and the model class count, and logcat (`adb logcat -s SoundCanvasAudio`) prints a start and stop summary with inference timings. Android was accepted by Sven after device testing on 2026-10-25; build and gate details are in [docs/android-adapter.md](docs/android-adapter.md). Kotlin unit tests: `cd android && ./gradlew :soundcanvas-audio:testDebugUnitTest`.
+This generates the gitignored `android/` project, builds a development build with the Kotlin module and MediaPipe Tasks Audio 1.0.0, and installs it. Android asks for the microphone like iOS; if it is refused, the app explains why and links to the app's system settings. The development-build diagnostics show the device and analysis format and the model class count, and logcat (`adb logcat -s SoundCanvasAudio`) prints a start and stop summary with inference timings. Build details are in [docs/android-adapter.md](docs/android-adapter.md). Kotlin unit tests: `cd android && ./gradlew :soundcanvas-audio:testDebugUnitTest`.
 
 MediaPipe's built-in usage-statistics upload is disabled on Android, so a release build makes no network requests of its own; development builds still load JavaScript and the model from Metro and keep MediaPipe's telemetry (see `modules/soundcanvas-audio/android/src/noTelemetry/README.md`).
 

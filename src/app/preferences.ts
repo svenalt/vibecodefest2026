@@ -3,11 +3,11 @@ import type { ThemeMode } from '../ui/theme';
 
 /**
  * Everything AUVIONA remembers between launches. No audio, sound labels or history.
- * Motion is not a preference: it always follows the device's Reduce Motion setting (REQ-010).
+ * Motion is not a preference: it always follows the device's Reduce Motion setting.
  */
 export interface Preferences {
   theme: ThemeMode;
-  /** The user's listening intent (REQ-008 P0-C), not whether the microphone is on right now. */
+  /** The user's listening intent, not whether the microphone is on right now. */
   listening: boolean;
   hapticAlerts: boolean;
 }
@@ -101,7 +101,7 @@ export const WRITE_TIMEOUT_MS = 3000;
  * never overwrite a newer Stop. A failed write is retried a bounded number of times; after that
  * `saveState` is `failed` until the next change or retrySave().
  *
- * Restart rule (REQ-011 P1-C): the next launch trusts only what is stored. A stored Stop is
+ * Restart rule: the next launch trusts only what is stored. A stored Stop is
  * authoritative; unreadable or partially written data recovers with listening off. If every write
  * fails, the next launch still sees the last stored value, which the UI says plainly.
  */
